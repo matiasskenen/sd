@@ -3,133 +3,618 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galería de Fotos - Plataforma Escolar</title>
+    <title>Plataforma de Fotos Escolares</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Estilos generales del cuerpo */
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
             color: #333;
         }
+        /* Contenedor principal para centrar el contenido */
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
+        }
+        /* Estilo base para tarjetas */
+        .card {
             background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 24px;
         }
-        h1 {
-            color: #0056b3;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .search-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .search-group input[type="text"] {
-            flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        .search-group button {
-            background-color: #28a745;
+        /* Estilo para botón primario */
+        .btn-primary {
+            background-color: #4f46e5;
             color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
             transition: background-color 0.3s ease;
         }
-        .search-group button:hover {
-            background-color: #218838;
+        .btn-primary:hover {
+            background-color: #4338ca;
         }
-        #message {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 5px;
-            font-size: 1em;
-            word-wrap: break-word;
+        /* Estilo para botón secundario */
+        .btn-secondary {
+            background-color: #e0e7ff;
+            color: #4f46e5;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
         }
-        #message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .btn-secondary:hover {
+            background-color: #c7d2fe;
         }
-        #message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        /* Estilo para campos de entrada */
+        .input-field {
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1rem;
         }
-        #loading {
-            display: none;
-            text-align: center;
-            margin-top: 20px;
-            font-weight: bold;
-            color: #007bff;
+        /* Overlay de marca de agua para imágenes */
+        .watermark-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50" y="50" font-family="Arial" font-size="16" fill="rgba(0,0,0,0.2)" text-anchor="middle" transform="rotate(-45 50 50)">MARCA DE AGUA</text></svg>');
+            background-repeat: repeat;
+            pointer-events: none; /* Permite que los clics pasen a la imagen de abajo */
+            z-index: 1;
         }
-        .gallery-grid {
+        /* Estilos para el modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 24px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto; /* Permite scroll si el contenido es muy grande */
+            position: relative;
+        }
+        /* Estilos para los mensajes de estado */
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        .message.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .message.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .message.info {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+        /* Estilo para el spinner de carga */
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .photo-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
             margin-top: 30px;
         }
         .photo-item {
-            border: 1px solid #eee;
+            background-color: #f9fafb;
             border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            background-color: #fff;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            text-align: center;
         }
         .photo-item img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            display: block;
-        }
-        .photo-info {
-            padding: 10px;
-            text-align: left;
-            font-size: 0.9em;
-        }
-        .photo-info p {
-            margin: 5px 0;
-            color: #555;
-        }
-        .photo-info .price {
-            font-weight: bold;
-            color: #007bff;
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Galería de Fotos del Evento</h1>
+<body class="min-h-screen flex flex-col">
 
-        <div class="search-group">
-
-            <input type="text" id="albumId" placeholder="Introduce el ID del Álbum">
-            <button id="searchButton">Ver Fotos</button>
-        </div>
-        <small>Ejemplo de ID: 1e0ee2b0-1c9d-4b3d-a912-d0799579c87f (si creaste uno)</small>
-
-
-        <button id="checkoutButton" style="background-color: #ffc107; color: #333; margin-top: 15px; padding: 12px; font-size: 1.1em;">
-            Ir al Carrito / Finalizar Compra
-        </button>
-
-        <div id="loading">Cargando fotos...</div>
-        <div id="message"></div>
-
-        <div class="gallery-grid" id="galleryContainer">
+    <!-- Encabezado de la página -->
+    <header class="bg-white shadow-md py-4">
+        <div class="container flex justify-between items-center">
+            <div class="text-2xl font-bold text-indigo-700">
+                [ LOGO FOTÓGRAFO ]
             </div>
-    </div>
+            <nav>
+                <ul class="flex space-x-6">
+                    <li><a href="#" class="text-gray-700 hover:text-indigo-600 font-medium" onclick="showSection('home-section'); return false;">Inicio</a></li>
+                    <li><a href="#" class="text-gray-700 hover:text-indigo-600 font-medium">Cómo Funciona</a></li>
+                    <li><a href="#" class="text-gray-700 hover:text-indigo-600 font-medium">Contacto</a></li>
+                    <li><a href="#" class="text-gray-700 hover:text-indigo-600 font-medium" onclick="showSection('cart-section'); return false;">Carrito (<span id="cart-count">0</span>)</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
 
-    <script src="gallery.js"></script>
+    <!-- Contenido principal -->
+    <main class="flex-grow container py-8">
+
+        <!-- Sección de Inicio (Home) -->
+        <section id="home-section" class="mb-12 text-center">
+            <div class="card p-8">
+                <h1 class="text-5xl font-extrabold text-indigo-800 mb-4">👋 ¡Encuentra las Fotos Escolares de tus Hijos!</h1>
+                <p class="text-lg text-gray-600 mb-8">Explora nuestras galerías, previsualiza y compra en alta calidad.</p>
+
+                <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
+                    <input type="text" id="albumIdInput" placeholder="Buscar por ID de Álbum o Código de Alumno" class="p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow">
+                    <button id="searchButton" class="btn-primary w-full md:w-auto">BUSCAR FOTOS</button>
+                </div>
+
+                <div class="mt-12">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-6">--- Colegios Destacados ---</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-xl shadow-lg p-6 text-center border border-gray-200">
+                            <img src="https://placehold.co/100x100/e0e7ff/4f46e5?text=Logo" alt="Logo Colegio A" class="mx-auto mb-4 rounded-full">
+                            <h3 class="text-xl font-semibold mb-2">Colegio A</h3>
+                            <button class="btn-secondary" onclick="simulateSearch('1e0ee2b0-1c9d-4b3d-a912-d0799579c87f'); return false;">Ver Galería</button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-lg p-6 text-center border border-gray-200">
+                            <img src="https://placehold.co/100x100/e0e7ff/4f46e5?text=Logo" alt="Logo Colegio B" class="mx-auto mb-4 rounded-full">
+                            <h3 class="text-xl font-semibold mb-2">Colegio B</h3>
+                            <button class="btn-secondary" onclick="simulateSearch('album-id-colegio-b'); return false;">Ver Galería</button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-lg p-6 text-center border border-gray-200">
+                            <img src="https://placehold.co/100x100/e0e7ff/4f46e5?text=Logo" alt="Logo Colegio C" class="mx-auto mb-4 rounded-full">
+                            <h3 class="text-xl font-semibold mb-2">Colegio C</h3>
+                            <button class="btn-secondary" onclick="simulateSearch('album-id-colegio-c'); return false;">Ver Galería</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Galería de Fotos (inicialmente oculta) -->
+        <section id="gallery-section" class="mb-12 hidden">
+            <div class="card p-8">
+                <a href="#" class="text-indigo-600 hover:underline mb-6 inline-block" onclick="showSection('home-section'); return false;">< Volver a la Búsqueda</a>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6" id="gallery-title">Fotos de: Álbum Seleccionado</h2>
+
+                <div class="flex flex-col md:flex-row items-center gap-4 mb-8">
+                    <select class="p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 md:w-1/3">
+                        <option>Filtrar por Evento/Fecha ▼</option>
+                        <option>Acto Fin de Año 2024</option>
+                        <option>Día del Niño 2024</option>
+                    </select>
+                    <input type="text" placeholder="Buscar por Código de Alumno" class="p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow">
+                </div>
+                
+                <div id="message" class="message hidden"></div>
+                <div id="loading" class="text-center hidden">
+                    <span class="loading-spinner"></span> Cargando fotos...
+                </div>
+
+                <div id="galleryContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    <!-- Las fotos se cargarán aquí dinámicamente -->
+                </div>
+
+                <div class="flex justify-center mt-8 space-x-2">
+                    <button class="btn-secondary px-4 py-2">1</button>
+                    <button class="btn-primary px-4 py-2">2</button>
+                    <button class="btn-secondary px-4 py-2">3</button>
+                    <span class="p-2">...</span>
+                    <button class="btn-secondary px-4 py-2">Siguiente ></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección del Carrito de Compras (inicialmente oculta) -->
+        <section id="cart-section" class="mb-12 hidden">
+            <div class="card p-8">
+                <a href="#" class="text-indigo-600 hover:underline mb-6 inline-block" onclick="showSection('gallery-section'); return false;">< Volver a la Galería</a>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Tu Carrito de Compras</h2>
+
+                <div id="cart-items-container" class="border-t border-b border-gray-200 py-4 mb-6">
+                    <!-- Los ítems del carrito se cargarán aquí dinámicamente -->
+                    <p id="empty-cart-message" class="text-gray-500 text-center py-4">El carrito está vacío.</p>
+                </div>
+
+                <div class="text-right text-xl font-semibold mb-4">
+                    <p>Subtotal: $<span id="cart-subtotal">0.00</span> ARS</p>
+                    <p class="text-3xl font-bold text-indigo-700 mt-2">Total a Pagar: $<span id="cart-total">0.00</span> ARS</p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-end gap-4">
+                    <button id="checkoutButton" class="btn-primary w-full sm:w-auto">IR A PAGAR (Mercado Pago)</button>
+                    <button class="btn-secondary w-full sm:w-auto" onclick="showSection('gallery-section'); return false;">Seguir Comprando</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal de Detalle de Foto / Compra (inicialmente oculto) -->
+        <section id="photo-detail-modal" class="modal hidden">
+            <div class="modal-content flex flex-col md:flex-row gap-6">
+                <!-- Botón para cerrar el modal -->
+                <button class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl" onclick="hidePhotoDetailModal()">&times;</button>
+                <div class="relative md:w-2/3">
+                    <!-- Imagen grande con marca de agua -->
+                    <img id="modal-photo-img" src="" alt="Foto Detallada" class="w-full h-auto rounded-lg">
+                    <div class="watermark-overlay"></div>
+                </div>
+                <div class="md:w-1/3 flex flex-col justify-between">
+                    <div>
+                        <!-- Información de la foto -->
+                        <h3 id="modal-photo-title" class="text-2xl font-bold mb-2"></h3>
+                        <p class="text-gray-600 mb-1">**Evento:** <span id="modal-photo-event"></span></p>
+                        <p class="text-gray-600 mb-4">**Colegio:** <span id="modal-photo-school"></span></p>
+                        <p id="modal-photo-price" class="text-4xl font-extrabold text-indigo-700 mb-6"></p>
+                    </div>
+                    <div>
+                        <!-- Botones de acción -->
+                        <button id="modal-add-to-cart-btn" class="btn-primary w-full mb-3">AÑADIR AL CARRITO</button>
+                        <button class="btn-secondary w-full">COMPRAR AHORA</button>
+                        <p class="text-sm text-gray-500 mt-4 text-center">*Al comprar, recibirás la foto en alta resolución y sin marca de agua.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Pie de página -->
+    <footer class="bg-gray-800 text-white py-6 mt-auto">
+        <div class="container text-center text-sm">
+            <p>&copy; 2025 [Nombre del Fotógrafo]. Todos los derechos reservados.</p>
+            <p class="mt-2">Contacto: info@fotografo.com | Tel: +54 9 11 1234-5678</p>
+            <div class="flex justify-center space-x-4 mt-3">
+                <a href="#" class="hover:text-indigo-400">Facebook</a>
+                <a href="#" class="hover:text-indigo-400">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Variables y Elementos del DOM ---
+        const homeSection = document.getElementById('home-section');
+        const gallerySection = document.getElementById('gallery-section');
+        const cartSection = document.getElementById('cart-section');
+        const photoDetailModal = document.getElementById('photo-detail-modal');
+
+        const albumIdInput = document.getElementById('albumIdInput');
+        const searchButton = document.getElementById('searchButton');
+        const galleryContainer = document.getElementById('galleryContainer');
+        const galleryTitle = document.getElementById('gallery-title');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
+
+        const cartCountSpan = document.getElementById('cart-count');
+        const cartItemsContainer = document.getElementById('cart-items-container');
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+        const cartSubtotalSpan = document.getElementById('cart-subtotal');
+        const cartTotalSpan = document.getElementById('cart-total');
+        const checkoutButton = document.getElementById('checkoutButton');
+
+        let currentAlbumPhotos = []; // Almacena las fotos del álbum actual para el carrito
+
+        // --- Funciones de Utilidad ---
+        const showMessage = (msg, type) => {
+            messageDiv.textContent = msg;
+            messageDiv.className = 'message'; // Resetea clases
+            if (type) {
+                messageDiv.classList.add(type);
+            }
+            messageDiv.classList.remove('hidden');
+        };
+
+        const hideMessage = () => {
+            messageDiv.classList.add('hidden');
+        };
+
+        const setLoading = (isLoading) => {
+            loadingDiv.classList.toggle('hidden', !isLoading);
+            searchButton.disabled = isLoading;
+            albumIdInput.disabled = isLoading;
+            checkoutButton.disabled = isLoading;
+        };
+
+        // Función para mostrar la sección correcta y ocultar las demás
+        const showSection = (sectionId) => {
+            homeSection.classList.add('hidden');
+            gallerySection.classList.add('hidden');
+            cartSection.classList.add('hidden');
+            photoDetailModal.classList.add('hidden'); // Siempre ocultar el modal
+
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            if (sectionId === 'cart-section') {
+                renderCart(); // Asegura que el carrito se renderice al mostrar la sección
+            }
+        };
+
+        // --- Lógica del Carrito ---
+        const getCart = () => JSON.parse(localStorage.getItem('cart')) || [];
+        const saveCart = (cart) => localStorage.setItem('cart', JSON.stringify(cart));
+
+        const updateCartUI = () => {
+            const cart = getCart();
+            const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            cartCountSpan.textContent = cartCount;
+            cartSubtotalSpan.textContent = cartTotal.toFixed(2);
+            cartTotalSpan.textContent = cartTotal.toFixed(2);
+
+            if (cartCount > 0) {
+                checkoutButton.disabled = false;
+            } else {
+                checkoutButton.disabled = true;
+            }
+        };
+
+        const renderCart = () => {
+            const cart = getCart();
+            cartItemsContainer.innerHTML = ''; // Limpiar items existentes
+
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                cartItemsContainer.appendChild(emptyCartMessage);
+            } else {
+                emptyCartMessage.classList.add('hidden');
+                cart.forEach(item => {
+                    const cartItemDiv = document.createElement('div');
+                    cartItemDiv.className = 'flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0';
+                    cartItemDiv.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="relative w-24 h-16 rounded-md overflow-hidden">
+                                <img src="${item.watermarkedUrl}" alt="Miniatura Foto">
+                                <div class="watermark-overlay"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg">Foto Código: ${item.studentCode || 'N/A'}</h4>
+                                <p class="text-gray-600">Precio: $${item.price.toFixed(2)} ARS</p>
+                                <p class="text-gray-600">Cantidad: ${item.quantity}</p>
+                            </div>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700 font-medium" data-photo-id="${item.photoId}">Eliminar</button>
+                    `;
+                    cartItemsContainer.appendChild(cartItemDiv);
+                });
+            }
+            updateCartUI();
+        };
+
+        // --- Lógica de la Galería y Detalle de Foto ---
+        const renderPhotos = (photos) => {
+            galleryContainer.innerHTML = '';
+            if (photos.length === 0) {
+                showMessage('No se encontraron fotos para este álbum.', 'info');
+                return;
+            }
+            photos.forEach(photo => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'relative bg-gray-100 rounded-lg overflow-hidden shadow-md group cursor-pointer';
+                photoItem.innerHTML = `
+                    <img src="${photo.public_watermarked_url}" alt="Foto de evento" class="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105">
+                    <div class="watermark-overlay"></div>
+                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button class="btn-primary text-sm px-4 py-2" data-photo-id="${photo.id}">Ver / Comprar</button>
+                    </div>
+                `;
+                // Añadir evento de clic para mostrar el modal de detalle
+                photoItem.querySelector('button').addEventListener('click', () => {
+                    showPhotoDetailModal(photo);
+                });
+                galleryContainer.appendChild(photoItem);
+            });
+            showMessage(`Se encontraron ${photos.length} fotos.`, 'success');
+        };
+
+        const showPhotoDetailModal = (photo) => {
+            document.getElementById('modal-photo-img').src = photo.public_watermarked_url;
+            document.getElementById('modal-photo-title').textContent = `Foto Código: ${photo.student_code || 'N/A'}`;
+            // Asumiendo que el álbum tiene un nombre y colegio. Esto se obtendría del backend.
+            document.getElementById('modal-photo-event').textContent = `Evento del Álbum`; 
+            document.getElementById('modal-photo-school').textContent = `Nombre del Colegio`;
+            document.getElementById('modal-photo-price').textContent = `Precio: $${photo.price.toFixed(2)} ARS`;
+            
+            // Configurar el botón "Añadir al Carrito" del modal
+            const modalAddToCartBtn = document.getElementById('modal-add-to-cart-btn');
+            modalAddToCartBtn.onclick = () => {
+                addToCart(photo);
+                hidePhotoDetailModal(); // Ocultar modal después de añadir al carrito
+            };
+
+            photoDetailModal.classList.remove('hidden');
+        };
+
+        const hidePhotoDetailModal = () => {
+            photoDetailModal.classList.add('hidden');
+        };
+
+        // --- Lógica para Añadir/Eliminar del Carrito ---
+        const addToCart = (photoToAdd) => {
+            let cart = getCart();
+            const existingItem = cart.find(item => item.photoId === photoToAdd.id);
+
+            if (existingItem) {
+                existingItem.quantity += 1;
+                showMessage('Cantidad actualizada en el carrito.', 'success');
+            } else {
+                cart.push({
+                    photoId: photoToAdd.id,
+                    albumId: photoToAdd.album_id, // Asegúrate de que photoToAdd tenga album_id
+                    watermarkedUrl: photoToAdd.public_watermarked_url,
+                    price: photoToAdd.price,
+                    studentCode: photoToAdd.student_code,
+                    quantity: 1
+                });
+                showMessage('Foto agregada al carrito.', 'success');
+            }
+            saveCart(cart);
+            updateCartUI();
+        };
+
+        const removeFromCart = (photoId) => {
+            let cart = getCart();
+            cart = cart.filter(item => item.photoId !== photoId);
+            saveCart(cart);
+            showMessage('Foto eliminada del carrito.', 'info');
+            renderCart(); // Re-renderizar el carrito
+        };
+
+        // --- Manejadores de Eventos ---
+
+        // Búsqueda de fotos por ID de álbum
+        searchButton.addEventListener('click', async () => {
+            const albumId = albumIdInput.value.trim();
+            if (!albumId) {
+                showMessage('Por favor, ingresa un ID de álbum.', 'error');
+                return;
+            }
+            if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(albumId)) {
+                showMessage('El ID del álbum no tiene un formato UUID válido.', 'error');
+                return;
+            }
+
+            setLoading(true);
+            hideMessage();
+            galleryContainer.innerHTML = '';
+            currentAlbumPhotos = []; // Limpia las fotos del álbum anterior
+
+            try {
+                const response = await fetch(`http://localhost:3000/albums/${albumId}/photos`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentAlbumPhotos = data.photos; // Guarda las fotos para el carrito
+                    renderPhotos(data.photos);
+                    galleryTitle.textContent = `Fotos de: Álbum ${albumId.substring(0, 8)}...`; // Título dinámico
+                    showSection('gallery-section'); // Muestra la sección de la galería
+                } else {
+                    showMessage(`Error al cargar fotos: ${data.message || 'Error desconocido'}`, 'error');
+                    console.error('Detalles del error:', data);
+                }
+            } catch (error) {
+                console.error('Error de red o del servidor:', error);
+                showMessage(`Error de conexión: ${error.message}. Asegúrate de que el backend esté funcionando.`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Simular búsqueda para "Colegios Destacados"
+        const simulateSearch = (albumId) => {
+            albumIdInput.value = albumId; // Pone el ID en el input
+            searchButton.click(); // Simula el clic en el botón de búsqueda
+        };
+
+        // Delegación de eventos para botones "Agregar al Carrito" en la galería
+        galleryContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('add-to-cart-btn')) {
+                const photoId = event.target.dataset.photoId;
+                const photoToAdd = currentAlbumPhotos.find(p => p.id === photoId);
+                if (photoToAdd) {
+                    addToCart(photoToAdd);
+                } else {
+                    showMessage('Error: Información de la foto no encontrada para agregar al carrito.', 'error');
+                }
+            }
+        });
+
+        // Delegación de eventos para botones "Eliminar" del carrito
+        cartItemsContainer.addEventListener('click', (event) => {
+            if (event.target.dataset.photoId) { // Usamos data-photo-id para identificar el botón de eliminar
+                const photoId = event.target.dataset.photoId;
+                removeFromCart(photoId);
+            }
+        });
+
+        // Event listener para el botón de Checkout
+        checkoutButton.addEventListener('click', async () => {
+            const cart = getCart();
+            if (cart.length === 0) {
+                showMessage('Tu carrito está vacío. Agrega algunas fotos antes de finalizar la compra.', 'error');
+                return;
+            }
+
+            // Usamos un prompt para el email por simplicidad en este ejemplo
+            const customerEmail = prompt("Por favor, ingresa tu email para la confirmación de compra:");
+            if (!customerEmail || !customerEmail.includes('@')) {
+                showMessage('Necesitamos un email válido para procesar tu compra.', 'error');
+                return;
+            }
+            
+            setLoading(true);
+            showMessage('Procesando tu pedido...', 'info');
+
+            try {
+                const response = await fetch('http://localhost:3000/create-payment-preference', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ cart: cart, customerEmail: customerEmail })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Pedido creado. Redirigiendo a Mercado Pago...', 'success');
+                    saveCart([]); // Limpia el carrito local
+                    currentAlbumPhotos = []; // Limpia las fotos del álbum actual
+                    updateCartUI(); // Actualiza el UI del carrito (debería mostrarse vacío)
+
+                    // Redirige al cliente a la URL de pago de Mercado Pago
+                    window.location.href = data.init_point;
+                } else {
+                    showMessage(`Error al crear pedido: ${data.message || 'Error desconocido'}`, 'error');
+                    console.error('Detalles del error:', data);
+                }
+            } catch (error) {
+                console.error('Error de red o del servidor al crear preferencia:', error);
+                showMessage(`Error de conexión: ${error.message}. Asegúrate de que el backend esté funcionando.`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // --- Inicialización al cargar la página ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCartUI(); // Actualiza el contador del carrito al cargar
+            showSection('home-section'); // Muestra la sección de inicio por defecto
+        });
+    </script>
 </body>
 </html>
