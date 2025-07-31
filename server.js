@@ -447,7 +447,7 @@ app.post('/upload-photos/:albumId', upload.array('photos'), async (req, res) => 
                 .toBuffer();
 
             // Subir imagen con marca de agua
-            const { error: uploadWatermarkedError } = await supabase.storage
+            const { error: uploadWatermarkedError } = await supabaseAdmin.storage
                 .from('watermarked-photos')
                 .upload(watermarkedFilePath, watermarkedBuffer, {
                     contentType: 'image/jpeg',
