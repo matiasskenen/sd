@@ -140,52 +140,56 @@
             return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
         };
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const orderId = getUrlParameter('orderId');
-            const customerEmail = getUrlParameter('customerEmail'); // Asegúrate de pasar este en la back_url
+        document.addEventListener('DOMContentLoaded', () => {
+        const orderId = getUrlParameter('orderId');
+        const customerEmail = getUrlParameter('customerEmail');
 
-            if (!orderId || !customerEmail) {
-                showMessage('Error: No se pudo encontrar la información de la orden. Por favor, contacta a soporte.', 'error');
-                return;
-            }
+        if (!orderId || !customerEmail) {
+            showMessage('Error: No se pudo encontrar la información de la orden. Por favor, contacta a soporte.', 'error');
+            return;
+        }
 
-            setLoading(true);
-            showMessage('Cargando tus fotos compradas...', 'info');
+        setLoading(true);
+        showMessage('Cargando tus fotos compradas...', 'info');
 
+        async function fetchPhotos() {
             try {
-                // Llama a una nueva ruta en tu backend para obtener las fotos de la orden
-                const response = await fetch(`https://f753342867c0.ngrok-free.app/order-details/${orderId}/${customerEmail}`);
-
+                const response = await fetch(`${BACKEND_URL}/order-details/${orderId}/${customerEmail}`);
                 const data = await response.json();
 
                 if (response.ok) {
                     if (data.photos && data.photos.length > 0) {
-                        purchasedPhotosContainer.innerHTML = ''; // Limpiar cualquier contenido previo
+                        purchasedPhotosContainer.innerHTML = '';
                         data.photos.forEach(photo => {
                             const photoItem = document.createElement('div');
                             photoItem.className = 'photo-item';
                             photoItem.innerHTML = `
                                 <img src="${photo.watermarked_url}" alt="Foto Comprada">
                                 <p class="text-sm text-gray-700 mb-2">Código: ${photo.student_code || 'N/A'}</p>
-                                <a href="https://f753342867c0.ngrok-free.app/download-photo/${photo.id}/${orderId}/${customerEmail}" class="btn-primary text-sm inline-block">Descargar Imagen</a>
-                            `; // <-- Botón de descarga con URL dinámica
+                                <a href="${BACKEND_URL}/download-photo/${photo.id}/${orderId}/${customerEmail}" 
+                                class="btn-primary text-sm inline-block">Descargar Imagen</a>
+                            `;
                             purchasedPhotosContainer.appendChild(photoItem);
                         });
                         showMessage(`¡Se encontraron ${data.photos.length} fotos para descargar!`, 'success');
+                        setLoading(false);
+                        clearInterval(pollingInterval);
                     } else {
-                        showMessage('No se encontraron fotos asociadas a esta orden o el pago aún no se ha confirmado. Por favor, espera unos minutos o contacta a soporte.', 'info');
+                        console.log('Aún no hay fotos disponibles, reintentando...');
                     }
                 } else {
-                    showMessage(`Error al cargar fotos: ${data.message || 'Error desconocido'}`, 'error');
-                    console.error('Detalles del error:', data);
+                    console.error('Error en respuesta del backend:', data);
                 }
             } catch (error) {
-                console.error('Error de red o del servidor al obtener detalles de la orden:', error);
-                showMessage(`Error de conexión: ${error.message}. Asegúrate de que el backend esté funcionando.`, 'error');
-            } finally {
-                setLoading(false);
+                console.error('Error de red:', error);
             }
-        });
+        }
+
+        // Hacer polling cada 2 segundos
+        const pollingInterval = setInterval(fetchPhotos, 2000);
+        fetchPhotos(); // Primer intento inmediato
+    });
+
     </script>
 </body>
 </html>
