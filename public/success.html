@@ -114,82 +114,82 @@
     </div>
 
     <script>
-        const BACKEND_URL = "https://f753342867c0.ngrok-free.app";
+    const BACKEND_URL = "https://f753342867c0.ngrok-free.app";
 
+    const purchasedPhotosContainer = document.getElementById('purchased-photos-container');
+    const statusMessageDiv = document.getElementById('status-message');
+    const loadingPhotosDiv = document.getElementById('loading-photos');
 
-        const purchasedPhotosContainer = document.getElementById('purchased-photos-container');
-        const statusMessageDiv = document.getElementById('status-message');
-        const loadingPhotosDiv = document.getElementById('loading-photos');
+    const showMessage = (msg, type) => {
+        statusMessageDiv.textContent = msg;
+        statusMessageDiv.className = 'message';
+        statusMessageDiv.classList.add(type);
+        statusMessageDiv.classList.remove('hidden');
+    };
 
-        const showMessage = (msg, type) => {
-            statusMessageDiv.textContent = msg;
-            statusMessageDiv.className = 'message';
-            statusMessageDiv.classList.add(type);
-            statusMessageDiv.classList.remove('hidden');
-        };
+    const setLoading = (isLoading) => {
+        loadingPhotosDiv.classList.toggle('hidden', !isLoading);
+    };
 
-        const setLoading = (isLoading) => {
-            loadingPhotosDiv.classList.toggle('hidden', !isLoading);
-        };
+    const getUrlParameter = (name) => {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        const results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    };
 
-        // Función para obtener parámetros de la URL
-        const getUrlParameter = (name) => {
-            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-            const results = regex.exec(location.search);
-            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-        const orderId = getUrlParameter('orderId');
-        const customerEmail = getUrlParameter('customerEmail');
-
-        if (!orderId || !customerEmail) {
-            showMessage('Error: No se pudo encontrar la información de la orden. Por favor, contacta a soporte.', 'error');
-            return;
-        }
-
-        setLoading(true);
-        showMessage('Cargando tus fotos compradas...', 'info');
-
-        async function fetchPhotos() {
+    async function fetchOrderDetailsWithRetry(orderId, customerEmail, maxRetries = 12, delay = 5000) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const response = await fetch(`${BACKEND_URL}/order-details/${orderId}/${customerEmail}`);
                 const data = await response.json();
 
-                if (response.ok) {
-                    if (data.photos && data.photos.length > 0) {
-                        purchasedPhotosContainer.innerHTML = '';
-                        data.photos.forEach(photo => {
-                            const photoItem = document.createElement('div');
-                            photoItem.className = 'photo-item';
-                            photoItem.innerHTML = `
-                                <img src="${photo.watermarked_url}" alt="Foto Comprada">
-                                <p class="text-sm text-gray-700 mb-2">Código: ${photo.student_code || 'N/A'}</p>
-                                <a href="${BACKEND_URL}/download-photo/${photo.id}/${orderId}/${customerEmail}" 
-                                class="btn-primary text-sm inline-block">Descargar Imagen</a>
-                            `;
-                            purchasedPhotosContainer.appendChild(photoItem);
-                        });
-                        showMessage(`¡Se encontraron ${data.photos.length} fotos para descargar!`, 'success');
-                        setLoading(false);
-                        clearInterval(pollingInterval);
-                    } else {
-                        console.log('Aún no hay fotos disponibles, reintentando...');
-                    }
+                if (!response.ok) {
+                    showMessage(`Error: ${data.message || 'Desconocido'}`, 'error');
+                    return;
+                }
+
+                if (data.order?.status === 'paid' && data.photos?.length > 0) {
+                    purchasedPhotosContainer.innerHTML = '';
+                    data.photos.forEach(photo => {
+                        const photoItem = document.createElement('div');
+                        photoItem.className = 'photo-item';
+                        photoItem.innerHTML = `
+                            <img src="${photo.watermarked_url}" alt="Foto Comprada">
+                            <p class="text-sm text-gray-700 mb-2">Código: ${photo.student_code || 'N/A'}</p>
+                            <a href="${BACKEND_URL}/download-photo/${photo.id}/${orderId}/${customerEmail}" class="btn-primary text-sm inline-block">Descargar Imagen</a>
+                        `;
+                        purchasedPhotosContainer.appendChild(photoItem);
+                    });
+                    showMessage(`¡Se encontraron ${data.photos.length} fotos para descargar!`, 'success');
+                    return; // Salimos, ya tenemos las fotos
                 } else {
-                    console.error('Error en respuesta del backend:', data);
+                    showMessage(`Intento ${attempt}/${maxRetries}: Esperando confirmación de pago...`, 'info');
                 }
             } catch (error) {
-                console.error('Error de red:', error);
+                showMessage(`Error de conexión: ${error.message}`, 'error');
+                console.error(error);
+                return;
             }
+
+            await new Promise(res => setTimeout(res, delay)); // Espera antes del próximo intento
+        }
+        showMessage('Tiempo de espera agotado. Si ya pagaste, recarga la página en unos minutos.', 'error');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const orderId = getUrlParameter('orderId');
+        const customerEmail = getUrlParameter('customerEmail');
+
+        if (!orderId || !customerEmail) {
+            showMessage('Error: Falta información de la orden.', 'error');
+            return;
         }
 
-        // Hacer polling cada 2 segundos
-        const pollingInterval = setInterval(fetchPhotos, 2000);
-        fetchPhotos(); // Primer intento inmediato
+        setLoading(true);
+        fetchOrderDetailsWithRetry(orderId, customerEmail).finally(() => setLoading(false));
     });
+</script>
 
-    </script>
 </body>
 </html>
