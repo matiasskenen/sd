@@ -1,4 +1,6 @@
 // server.js
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 
 // Carga las variables de entorno al inicio de todo
 require('dotenv').config();
@@ -280,98 +282,60 @@ app.post('/login', async (req, res) => {
 
 // Ruta para crear una preferencia de pago en Mercado Pago
 app.post('/create-payment-preference', async (req, res) => {
-    const { cart, customerEmail } = req.body;
+  const { cart, customerEmail } = req.body;
+  if (!cart?.length || !customerEmail) {
+    return res.status(400).json({ message: 'El carrito está vacío o falta el email.' });
+  }
 
-    if (!cart || cart.length === 0 || !customerEmail) {
-        return res.status(400).json({ message: 'El carrito está vacío o el email del cliente no fue proporcionado.' });
-    }
+  let totalAmount = 0;
+  for (const item of cart) totalAmount += Number(item.price) * Number(item.quantity || 1);
 
-    let totalAmount = 0;
-    const itemsMP = cart.map(item => {
-        totalAmount += item.price * item.quantity;
-        return {
-            title: `Foto ID: ${item.photoId.substring(0, 8)} - Código: ${item.studentCode || 'N/A'}`,
-            unit_price: parseFloat(item.price),
-            quantity: 1,
-            currency_id: 'ARS',
-            picture_url: item.watermarkedUrl
-        };
-    });
+  try {
+    // 1) Crear order
+    const { data: orderData, error: orderErr } = await supabaseAdmin
+      .from('orders')
+      .insert({ customer_email: customerEmail, total_amount: totalAmount, status: 'pending' })
+      .select()
+      .single();
+    if (orderErr) return res.status(500).json({ message: `Error al crear pedido: ${orderErr.message}` });
 
-    try {
-        // 1. Crear el pedido en tu base de datos (Supabase)
-        const { data: orderData, error: orderError } = await supabaseAdmin
-            .from('orders')
-            .insert({
-                customer_email: customerEmail,
-                total_amount: totalAmount,
-                status: 'pending',
-            })
-            .select()
-            .single();
+    // 2) Insert order_items
+    const items = cart.map(i => ({
+      order_id: orderData.id,
+      photo_id: i.photoId,
+      price_at_purchase: Number(i.price),
+      quantity: Number(i.quantity || 1),
+    }));
+    const { error: itemsErr } = await supabaseAdmin.from('order_items').insert(items);
+    if (itemsErr) return res.status(500).json({ message: `Error al insertar ítems: ${itemsErr.message}` });
 
-        if (orderError) {
-            console.error('Error al crear el pedido en Supabase:', orderError.message);
-            return res.status(500).json({ message: `Error al crear el pedido: ${orderError.message}` });
-        }
+    // 3) Crear preferencia (suma total como 1 ítem)
+    const prefBody = {
+      items: [{ title: 'Compra de Fotos Escolares', unit_price: Number(totalAmount), quantity: 1, currency_id: 'ARS' }],
+      external_reference: orderData.id, // <- lo usamos en el webhook
+      back_urls: {
+        success: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
+        failure: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
+        pending: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`
+      },
+      notification_url: `${process.env.BACKEND_URL}/mercadopago-webhook`,
+    };
 
-        // 2. Insertar los ítems del pedido
-        const orderItemsToInsert = cart.map(item => ({
-            order_id: orderData.id,
-            photo_id: item.photoId,
-            price_at_purchase: item.price,
-            quantity: item.quantity
-        }));
+    const prefRes = await preference.create({ body: prefBody });
+    const initPoint = process.env.NODE_ENV === 'production' ? prefRes.init_point : prefRes.sandbox_init_point;
 
-        const { error: orderItemsError } = await supabaseAdmin
-            .from('order_items')
-            .insert(orderItemsToInsert);
-
-        if (orderItemsError) {
-            console.error('Error al insertar ítems del pedido en Supabase:', orderItemsError.message);
-            return res.status(500).json({ message: `Error al insertar ítems del pedido: ${orderItemsError.message}` });
-        }
-
-        // 3. Crear la preferencia de pago en Mercado Pago
-        const simplePreferenceData = {
-            items: [
-                {
-                    title: "Compra de Fotos Escolares",
-                    unit_price: parseFloat(totalAmount),
-                    quantity: 1,
-                    currency_id: 'ARS',
-                }
-            ],
-            external_reference: orderData.id,
-            // Todas las back_urls apuntan a success.html para un flujo unificado
-            back_urls: {
-                success: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
-                failure: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`, // Redirige a success también en caso de falla
-                pending: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}` // Redirige a success también en caso de pendiente
-            },
-            notification_url: `${process.env.BACKEND_URL}/mercadopago-webhook`
-        };
-
-        const responseMP = await preference.create({ body: simplePreferenceData });
-        
-        console.log('Respuesta COMPLETA de Mercado Pago (para depuración):', JSON.stringify(responseMP, null, 2));
-
-        const redirectUrl = process.env.NODE_ENV === 'production' 
-                            ? responseMP.init_point 
-                            : responseMP.sandbox_init_point;
-        
-        res.status(200).json({
-            message: 'Preferencia de pago creada exitosamente.',
-            init_point: redirectUrl,
-            payment_id: responseMP.id,
-            orderId: orderData.id
-        });
-
-    } catch (err) {
-        console.error('Error al crear preferencia de pago en Mercado Pago (catch):', err);
-        res.status(500).json({ message: 'Error interno del servidor al crear preferencia de pago.' });
-    }
+    return res.status(200).json({
+      message: 'Preferencia creada',
+      init_point: initPoint,
+      preference_id: prefRes.id,   // <- evita confundir con payment_id
+      orderId: orderData.id
+    });
+  } catch (e) {
+    console.error('create-payment-preference error:', e);
+    return res.status(500).json({ message: 'Error interno al crear preferencia.' });
+  }
 });
+
 
 app.post('/upload-photos/:albumId', upload.array('photos'), async (req, res) => {
     const albumId = req.params.albumId;
@@ -509,82 +473,54 @@ app.post('/upload-photos/:albumId', upload.array('photos'), async (req, res) => 
 
 
 // --- NUEVA RUTA: Webhook de Mercado Pago ---
-app.post('/mercadopago-webhook', async (req, res) => {
-  console.log('--- Webhook de Mercado Pago recibido ---');
-  console.log('Query Params:', req.query);
-  console.log('Cuerpo del Webhook (JSON):', req.body);
+// Ruta RAW: poner ANTES de app.use(express.json()) global, o usar el middleware específico como abajo.
+// Si mantenés tu express.json() global, declaralo así con middleware específico:
+app.post("/mercadopago-webhook", express.json(), async (req, res) => {
+  console.log("📩 Webhook recibido de Mercado Pago");
+  console.log("Headers:", req.headers);
+  console.log("Body:", JSON.stringify(req.body, null, 2));
 
-  const { topic, id: merchantOrderId } = req.query;
+  try {
+    const paymentId = req.body.data?.id || req.query.id;
+    console.log("🔍 ID de pago recibido:", paymentId);
 
-  // Respondemos rápido a Mercado Pago para evitar reintentos
-  res.status(200).send('OK');
+    if (!paymentId) {
+      console.log("❌ No se encontró ID de pago");
+      return res.sendStatus(400);
+    }
 
-  if (topic !== 'merchant_order') {
-    console.log('Ignorando webhook que no es de tipo merchant_order');
-    return;
-  }
+    // Consultar detalles del pago
+    const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` }
+    });
+    const paymentData = await mpResponse.json();
+    console.log("💳 Datos del pago:", JSON.stringify(paymentData, null, 2));
 
-  try {
-    // Usamos retry inteligente
-    const orderData = await getMerchantOrderWithRetry(merchantOrderId);
+    if (paymentData.status === "approved") {
+      const orderId = paymentData.external_reference;
+      console.log(`✅ Pago aprobado para orden ${orderId}`);
 
-    if (!orderData || !orderData.external_reference) {
-      console.error('Orden inválida o sin external_reference');
-      return;
-    }
+      // Actualizar estado de la orden en Supabase
+      const { data, error } = await supabase
+        .from("orders")
+        .update({ status: "paid" })
+        .eq("id", orderId);
 
-    const orderId = orderData.external_reference;
-    const payments = orderData.payments;
+      if (error) {
+        console.error("❌ Error actualizando orden en Supabase:", error);
+      } else {
+        console.log("📦 Orden actualizada:", data);
+      }
+    }
 
-    if (!payments || payments.length === 0) {
-      console.warn(`⚠️ Orden ${orderId} no tiene pagos después de reintentos.`);
-      return;
-    }
-
-    const latestPayment = payments[0];
-    const paymentStatus = latestPayment.status;
-    const paymentIdMP = latestPayment.id;
-
-    let newStatus;
-    switch (paymentStatus) {
-      case 'approved':
-        newStatus = 'paid';
-        break;
-      case 'pending':
-        newStatus = 'pending_payment';
-        break;
-      case 'rejected':
-        newStatus = 'rejected';
-        break;
-      default:
-        newStatus = 'unknown';
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('orders')
-      .update({
-        status: newStatus,
-        mp_payment_id: paymentIdMP,
-        mp_status: paymentStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
-
-    if (updateError) {
-      console.error(`❌ Error actualizando orden ${orderId}:`, updateError.message);
-      return;
-    }
-
-    console.log(`✅ Orden ${orderId} actualizada con estado: ${newStatus}`);
-
-    if (newStatus === 'paid') {
-      console.log(`🎉 Pago confirmado. Ahora podés habilitar descarga, etc.`);
-    }
-
-  } catch (err) {
-    console.error('❌ Error al procesar merchant_order con retry:', err);
-  }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("💥 Error procesando webhook:", err);
+    res.sendStatus(500);
+  }
 });
+
+
 
 // --- NUEVA RUTA: Obtener Detalles de Orden para Página de Éxito ---
 // Esta ruta es llamada por success.html para obtener las fotos compradas.
@@ -605,7 +541,7 @@ app.get('/order-details/:orderId/:customerEmail', async (req, res) => {
             .from('orders')
             .select('id, customer_email, status')
             .eq('id', orderId)
-            .eq('customer_email', customerEmail)
+            .eq('customer_email', customerEmail.toLowerCase())
             // No verificamos el status 'paid' aquí para que la página de éxito pueda mostrar
             // estados pendientes o rechazados. success.html debe manejar esto.
             .single();
@@ -641,7 +577,8 @@ app.get('/order-details/:orderId/:customerEmail', async (req, res) => {
             return res.status(500).json({ message: 'Error al obtener ítems de la orden.' });
         }
 
-        if (!orderItems || orderItems.length === 0) {
+        const photoIds = orderItems.map(oi => oi.photo_id);
+        if (photoIds.length === 0) {
             return res.status(404).json({ message: 'No se encontraron fotos para esta orden.' });
         }
 
@@ -681,93 +618,77 @@ app.get('/order-details/:orderId/:customerEmail', async (req, res) => {
     }
 });
 
-
 // --- NUEVA RUTA: Descarga de Fotos Originales ---
-// Esta ruta es para que el cliente descargue la foto original después de pagar.
-// Necesitará algún tipo de autenticación (ej. un token temporal, o que el usuario esté logueado
-// y se verifique su compra). Por ahora, una verificación simple por orderId y customerEmail.
+// Ahora usa URL firmada para que el cliente descargue directo desde Supabase
 app.get('/download-photo/:photoId/:orderId/:customerEmail', async (req, res) => {
-    const { photoId, orderId, customerEmail } = req.params;
+  const { photoId, orderId, customerEmail } = req.params;
 
-    // 1. Validar IDs
-    if (!photoId || !orderId || !customerEmail) {
-        return res.status(400).send('Faltan parámetros de descarga.');
-    }
-    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(photoId) ||
-        !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(orderId)) {
-        return res.status(400).send('IDs de foto u orden no válidos.');
-    }
+  // 1. Validar parámetros
+  if (!photoId || !orderId || !customerEmail) {
+    return res.status(400).send('Faltan parámetros de descarga.');
+  }
+  if (!/^[0-9a-fA-F-]{36}$/.test(photoId) || !/^[0-9a-fA-F-]{36}$/.test(orderId)) {
+    return res.status(400).send('IDs de foto u orden no válidos.');
+  }
 
-    try {
-        // 2. Verificar que la orden existe, está pagada y pertenece a este email
-        // Usamos supabaseAdmin para ignorar RLS en esta verificación de backend
-        const { data: order, error: orderError } = await supabaseAdmin
-            .from('orders')
-            .select('id, customer_email, status')
-            .eq('id', orderId)
-            .eq('customer_email', customerEmail)
-            .eq('status', 'paid') // Solo si el estado es 'paid'
-            .single();
+  try {
+    // 2. Verificar que la orden existe, está pagada y pertenece al email
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, customer_email, status')
+      .eq('id', orderId)
+      .eq('customer_email', customerEmail)
+      .eq('status', 'paid') // solo si está pagada
+      .single();
 
-        if (orderError || !order) {
-            console.error(`Error de autorización para descarga: Orden ${orderId} no encontrada, no pagada o email incorrecto.`, orderError?.message);
-            return res.status(403).send('No autorizado para descargar esta foto. La orden no existe, no está pagada o el email no coincide.');
-        }
+    if (orderError || !order) {
+      console.error(`❌ Descarga no autorizada. Orden ${orderId} no encontrada, no pagada o email incorrecto.`);
+      return res.status(403).send('No autorizado para descargar esta foto.');
+    }
 
-        // 3. Verificar que la foto es parte de esta orden
-        // Usamos supabaseAdmin para ignorar RLS en esta verificación de backend
-        const { data: orderItem, error: orderItemError } = await supabaseAdmin
-            .from('order_items')
-            .select('id, photo_id')
-            .eq('order_id', orderId)
-            .eq('photo_id', photoId)
-            .single();
+    // 3. Verificar que la foto pertenece a la orden
+    const { data: orderItem, error: orderItemError } = await supabaseAdmin
+      .from('order_items')
+      .select('photo_id')
+      .eq('order_id', orderId)
+      .eq('photo_id', photoId)
+      .single();
 
-        if (orderItemError || !orderItem) {
-            console.error(`Error de autorización para descarga: Foto ${photoId} no encontrada en la orden ${orderId}.`, orderItemError?.message);
-            return res.status(403).send('La foto no es parte de esta orden.');
-        }
+    if (orderItemError || !orderItem) {
+      console.error(`❌ Foto ${photoId} no encontrada en la orden ${orderId}.`);
+      return res.status(403).send('La foto no es parte de esta orden.');
+    }
 
-        // 4. Obtener la ruta del archivo original de la foto
-        // Usamos supabaseAdmin para ignorar RLS en esta verificación de backend
-        const { data: photo, error: photoError } = await supabaseAdmin
-            .from('photos')
-            .select('original_file_path')
-            .eq('id', photoId)
-            .single();
+    // 4. Obtener la ruta original desde la tabla photos
+    const { data: photo, error: photoError } = await supabaseAdmin
+      .from('photos')
+      .select('original_file_path')
+      .eq('id', photoId)
+      .single();
 
-        if (photoError || !photo || !photo.original_file_path) {
-            console.error(`Error al obtener ruta de archivo original para foto ${photoId}:`, photoError?.message);
-            return res.status(404).send('Ruta de archivo original no encontrada para la foto.');
-        }
+    if (photoError || !photo?.original_file_path) {
+      console.error(`❌ No se encontró ruta de archivo original para foto ${photoId}.`);
+      return res.status(404).send('No se encontró la foto original.');
+    }
 
-        // 5. Descargar el archivo original del bucket privado de Supabase
-        const { data: fileBlob, error: downloadError } = await supabaseAdmin.storage
-            .from('original-photos') // Tu bucket privado
-            .download(photo.original_file_path);
+    // 5. Generar URL firmada (válida por 7 días)
+    const { data: signed, error: signedError } = await supabaseAdmin.storage
+      .from('original-photos')
+      .createSignedUrl(photo.original_file_path, 60 * 60 * 24 * 7);
 
-        if (downloadError) {
-            console.error(`Error al descargar archivo original ${photo.original_file_path}:`, downloadError.message);
-            return res.status(500).send('Error al descargar la foto original.');
-        }
+    if (signedError || !signed?.signedUrl) {
+      console.error(`❌ Error creando URL firmada para ${photo.original_file_path}:`, signedError?.message);
+      return res.status(500).send('No se pudo generar la descarga.');
+    }
 
-        // 6. Enviar el archivo al cliente
-        // El nombre del archivo para la descarga
-        const fileName = path.basename(photo.original_file_path);
-        
-        // Convertir Blob a Buffer para enviar con Express
-        const buffer = Buffer.from(await fileBlob.arrayBuffer());
+    // 6. Redirigir al usuario a la URL firmada
+    console.log(`✅ URL firmada generada para foto ${photoId}`);
+    return res.redirect(signed.signedUrl);
 
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.setHeader('Content-Type', fileBlob.type || 'application/octet-stream'); // Usar el tipo de archivo del blob
-        res.send(buffer);
-
-        console.log(`✅ Foto ${photoId} descargada exitosamente para la orden ${orderId}.`);
-
-    } catch (err) {
-        console.error('❌ Error inesperado en la ruta de descarga:', err);
-        res.status(500).send('Error interno del servidor al procesar la descarga.');
-    }
+  } catch (err) {
+    console.error('❌ Error inesperado en la descarga de foto:', err);
+    res.status(500).send('Error interno del servidor.');
+  }
 });
 
 
