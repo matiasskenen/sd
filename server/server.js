@@ -767,3 +767,91 @@ app.get("/admin/stats", async (req, res) => {
     res.status(500).json({ message: "Error interno al obtener estadísticas" });
   }
 });
+
+// Obtener álbumes con sus fotos
+app.get("/albums-with-photos", async (req, res) => {
+  try {
+    const { data: albums, error } = await supabaseAdmin
+      .from("albums")
+      .select(`
+        id,
+        name,
+        event_date,
+        photos (
+          id,
+          watermarked_file_path
+        )
+      `)
+      .order("event_date", { ascending: false });
+
+    if (error) throw error;
+
+    const albumsWithUrls = albums.map(a => ({
+      ...a,
+      photos: a.photos.map(p => ({
+        id: p.id,
+        public_watermarked_url: `${supabaseUrl}/storage/v1/object/public/watermarked-photos/${p.watermarked_file_path}`
+      }))
+    }));
+
+    res.json(albumsWithUrls);
+  } catch (err) {
+    console.error("Error al obtener álbumes con fotos:", err);
+    res.status(500).json({ message: "Error interno al obtener álbumes" });
+  }
+});
+
+// Eliminar álbum y fotos
+app.delete("/albums/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await supabaseAdmin.from("photos").delete().eq("album_id", id);
+    const { error } = await supabaseAdmin.from("albums").delete().eq("id", id);
+    if (error) throw error;
+    res.json({ message: "Álbum eliminado" });
+  } catch (err) {
+    console.error("Error al eliminar álbum:", err);
+    res.status(500).json({ message: "Error interno al eliminar álbum" });
+  }
+});
+
+// Eliminar foto
+app.delete("/photos/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabaseAdmin.from("photos").delete().eq("id", id);
+    if (error) throw error;
+    res.json({ message: "Foto eliminada" });
+  } catch (err) {
+    console.error("Error al eliminar foto:", err);
+    res.status(500).json({ message: "Error interno al eliminar foto" });
+  }
+});
+
+// Actualizar álbum
+app.put("/albums/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, event_date, description } = req.body;
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("albums")
+      .update({
+        name,
+        event_date,
+        description
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, album: data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
