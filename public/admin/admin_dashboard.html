@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Administración</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-white shadow-md py-4">
+    <div class="container flex justify-between items-center">
+      <div class="text-2xl font-bold text-indigo-700">[ LOGO FOTÓGRAFO ]</div>
+      <nav>
+        <ul class="flex space-x-6">
+          <li><a href="#" data-page="dashboard" class="nav-link text-gray-700 hover:text-indigo-600 font-medium">Dashboard</a></li>
+          <li><a href="#" data-page="albumes" class="nav-link text-gray-700 hover:text-indigo-600 font-medium">Gestionar Álbumes</a></li>
+          <li><a href="#" data-page="pedidos" class="nav-link text-gray-700 hover:text-indigo-600 font-medium">Ver Pedidos</a></li>
+          <li><a href="#" id="logoutButton" class="text-gray-700 hover:text-indigo-600 font-medium">Salir</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENIDO -->
+  <main id="content" class="flex-grow container py-8">
+    <!-- Aquí se cargan las secciones dinámicamente -->
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-gray-800 text-white py-6 mt-auto">
+    <div class="container text-center text-sm">
+      <p>&copy; 2025 [Nombre del Fotógrafo]. Todos los derechos reservados.</p>
+      <p class="mt-2">Panel de Administración</p>
+    </div>
+  </footer>
+
+  <script src="/admin/js/main.js"></script>
+</body>
+</html>

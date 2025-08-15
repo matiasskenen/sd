@@ -1,0 +1,49 @@
+<div class="card">
+  <h1 class="text-3xl font-extrabold text-gray-800 mb-8 text-center">Subir Fotos de Evento</h1>
+
+  <form id="uploadForm">
+    <div class="mb-5">
+      <!-- Selección de Álbum -->
+      <div id="albumSelectionMode">
+        <label for="albumSelect" class="block text-gray-700 text-sm font-medium mb-2">Seleccionar Álbum Existente:</label>
+        <div class="select-with-clear">
+          <button type="button" id="clearAlbumSelection" class="clear-album-selection-btn">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+          <select id="albumSelect" class="input-field mb-2">
+            <option value="">Cargando álbumes...</option>
+          </select>
+        </div>
+        <small class="text-gray-500 block mb-4">O crea uno nuevo:</small>
+        <button type="button" id="toggleCreateNewAlbumMode" class="btn-secondary mt-2">Crear Nuevo Álbum</button>
+      </div>
+
+      <!-- Creación de nuevo Álbum -->
+      <div id="albumCreationMode" class="hidden">
+        <label for="newAlbumNameInput" class="block text-gray-700 text-sm font-medium mb-2">Nombre del Nuevo Álbum:</label>
+        <input type="text" id="newAlbumNameInput" class="input-field" placeholder="Ej: Fotos Acto Fin de Año">
+        <div class="flex gap-2 mt-2">
+          <button type="button" id="confirmCreateAlbumButton" class="btn-primary flex-grow">Confirmar Creación</button>
+          <button type="button" id="cancelCreateAlbumButton" class="btn-secondary flex-grow">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subida de fotos -->
+    <div class="mb-6">
+      <label for="photos" class="block text-gray-700 text-sm font-medium mb-2">Seleccionar Fotos:</label>
+      <input type="file" id="photos" multiple accept="image/*" class="input-field">
+      <div class="preview-grid" id="previewContainer"></div>
+    </div>
+
+    <button type="submit" id="uploadButton" class="btn-primary flex items-center justify-center">
+      <span id="loading-spinner" class="loading-spinner hidden"></span>
+      Subir Fotos
+    </button>
+
+    <div id="loading" class="text-center mt-4 hidden">
+      <span class="loading-spinner"></span> Subiendo fotos... Por favor, espera.
+    </div>
+    <div id="message" class="message hidden"></div>
+  </form>
+</div>

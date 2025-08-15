@@ -731,3 +731,39 @@ app.get('/config.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.send(`const BACKEND_URL = "${process.env.BACKEND_URL}";`);
 });
+
+
+app.get("/orders", async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ orders: data });
+  } catch (err) {
+    console.error("Error al obtener pedidos:", err);
+    res.status(500).json({ message: "Error interno al obtener pedidos" });
+  }
+});
+
+app.get("/admin/stats", async (req, res) => {
+  try {
+    const [{ count: totalAlbums }, { count: totalPhotos }, { count: totalOrders }] = await Promise.all([
+      supabaseAdmin.from("albums").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("photos").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("orders").select("*", { count: "exact", head: true })
+    ]);
+
+    res.json({
+      totalAlbums: totalAlbums ?? 0,
+      totalPhotos: totalPhotos ?? 0,
+      totalOrders: totalOrders ?? 0
+    });
+  } catch (err) {
+    console.error("Error al obtener estadísticas:", err);
+    res.status(500).json({ message: "Error interno al obtener estadísticas" });
+  }
+});

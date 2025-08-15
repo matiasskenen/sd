@@ -1,0 +1,174 @@
+body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      /* Use flex column for header, main, footer layout */
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      /* Wider container for admin panel */
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      padding: 24px;
+    }
+
+    .input-field {
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.125rem;
+      /* text-lg */
+      width: 100%;
+      box-sizing: border-box;
+      transition: background-color 0.3s ease;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .btn-secondary {
+      /* Added for new album button */
+      background-color: #e0e7ff;
+      color: #4f46e5;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+      background-color: #c7d2fe;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: 500;
+      text-align: left;
+    }
+
+    .message.success {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .message.error {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    .message.info {
+      background-color: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .loading-spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #4f46e5;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .preview-item {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Estilos para el nuevo botón de limpiar selección */
+    .clear-album-selection-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      /* red-500 */
+      font-size: 1.5rem;
+      /* Icono más grande */
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      position: absolute;
+      /*left: -30px; /* Posicionado a la izquierda del select/label */
+      /*top: 50%; /* Alineado verticalmente */
+      /*transform: translateY(-50%);*/
+      display: none;
+      /* Oculto por defecto, se muestra con JS */
+      margin-left: -30px;
+      /* Ajuste para moverlo a la izquierda del select */
+      z-index: 10;
+      /* Para que esté por encima del select */
+    }
+
+    .clear-album-selection-btn:hover {
+      color: #dc2626;
+      /* red-600 */
+    }
+
+    /* Contenedor para el select y el botón de limpiar */
+    .select-with-clear {
+      position: relative;
+      display: flex;
+      /* Para alinear el icono al lado del select */
+      align-items: center;
+      /* gap: 5px; /* Espacio entre icono y select */
+    }
+
+    .select-with-clear .input-field {
+      flex-grow: 1;
+      /* Permite que el select ocupe el espacio restante */
+    }
