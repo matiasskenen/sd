@@ -172,7 +172,7 @@
 
                     // Redirigir al panel de administración (ej. admin_dashboard.html)
                     // Por ahora, solo un log y un mensaje
-                    window.location.href = `${BACKEND_URL}/admin_dashboard.html`; // <-- Necesitarás crear esta página
+                    window.location.href = `${BACKEND_URL}/admin/admin_dashboard.html`; // <-- Necesitarás crear esta página
                 } else {
                     showMessage(data.message || 'Error al iniciar sesión. Credenciales inválidas.', 'error');
                     console.error('Error de login:', data);
