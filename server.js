@@ -462,16 +462,15 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
         let paymentId = null;
         let merchantOrderId = null;
 
-        // Caso 1: tipo "payment"
+        /**
+         * 1️⃣ Caso: topic "payment"
+         */
         if (topic === "payment" || req.body.type === "payment") {
             paymentId = id || req.body.data?.id || req.body.resource;
             console.log("🔍 ID de pago recibido:", paymentId);
 
-            // Consultar datos del pago con el Access Token
             const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-                headers: {
-                    Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-                },
+                headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             const paymentData = await mpRes.json();
@@ -482,43 +481,36 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
             }
         }
 
-        // Caso 2: tipo "merchant_order"
+        /**
+         * 2️⃣ Caso: topic "merchant_order"
+         */
         if (topic === "merchant_order" || req.body.topic === "merchant_order") {
             merchantOrderId = id || resource?.split("/").pop();
             console.log("🔍 ID de merchant_order recibido:", merchantOrderId);
 
-            // Consultar datos de la orden con el Access Token
             const orderRes = await fetch(`https://api.mercadopago.com/merchant_orders/${merchantOrderId}`, {
-                headers: {
-                    Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-                },
+                headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             const orderData = await orderRes.json();
             console.log("📦 Datos de la orden:", orderData);
 
-            // Si está pagada, actualizamos en la base de datos
+            // Si está pagada, procesamos
             if (orderData.order_status === "paid" || orderData.paid_amount >= orderData.total_amount) {
                 console.log(`✅ Orden ${orderData.external_reference} pagada, habilitando descarga...`);
 
-                // 1. Obtener info de la orden en tu base
-                const { data: order, error: orderError } = await supabaseAdmin
-                    .from("orders")
-                    .select("customer_email, photos") // 'photos' sería array con rutas en el bucket
-                    .eq("id", orderData.external_reference)
-                    .single();
+                // 3️⃣ Obtener info de la orden en Supabase
+                const { data: order, error: orderError } = await supabaseAdmin.from("orders").select("customer_email, photos").eq("id", orderData.external_reference).single();
 
                 if (orderError || !order) {
                     console.error("❌ Error obteniendo orden:", orderError);
                     return res.status(500).json({ error: "No se pudo obtener la orden" });
                 }
 
-                // 2. Generar URLs firmadas (7 días = 604800 seg)
+                // 4️⃣ Generar URLs firmadas (7 días = 604800 segundos)
                 const signedUrls = [];
                 for (const photoPath of order.photos) {
-                    const { data: signedData, error: signedError } = await supabaseAdmin.storage
-                        .from("fotos-originales") // tu bucket privado
-                        .createSignedUrl(photoPath, 604800);
+                    const { data: signedData, error: signedError } = await supabaseAdmin.storage.from("fotos-originales").createSignedUrl(photoPath, 604800);
 
                     if (signedError) {
                         console.error("❌ Error generando URL firmada:", signedError);
@@ -527,9 +519,8 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                     signedUrls.push(signedData.signedUrl);
                 }
 
-                // 3. Enviar email con EmailJS o servicio que uses
-                // Ejemplo básico con EmailJS REST API
-                await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+                // 5️⃣ Enviar email con EmailJS
+                const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -537,14 +528,23 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                         template_id: process.env.EMAILJS_TEMPLATE_ID,
                         user_id: process.env.EMAILJS_USER_ID,
                         template_params: {
-                            to_email: order.customer_email,
-                            subject: "Tu compra está lista para descargar",
-                            message: `Gracias por tu compra. Aquí tienes tus fotos (link válido por 7 días):\n\n${signedUrls.join("\n")}`,
+                            name: "Cliente",
+                            email: order.customer_email,
+                            time: new Date().toLocaleString(),
+                            message: "Gracias por tu compra. Descargá tus fotos desde el siguiente botón:",
+                            download_link: signedUrls[0], // si querés enviar varios, ajusta el template
                         },
                     }),
                 });
 
-                // 4. Actualizar estado de la orden
+                const emailData = await emailRes.text();
+                console.log("📧 Respuesta de EmailJS:", emailRes.status, emailData);
+
+                if (!emailRes.ok) {
+                    console.error("❌ Error enviando email:", emailData);
+                }
+
+                // 6️⃣ Actualizar estado de la orden en Supabase
                 await supabaseAdmin
                     .from("orders")
                     .update({
@@ -563,6 +563,7 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
         res.sendStatus(500);
     }
 });
+
 
 // --- NUEVA RUTA: Obtener Detalles de Orden para Página de Éxito ---
 // Esta ruta es llamada por success.html para obtener las fotos compradas.
@@ -838,3 +839,5 @@ app.put("/albums/:id", async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 });
+
+
