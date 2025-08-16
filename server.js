@@ -535,7 +535,14 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                     })
                     .eq("id", orderId);
 
-                console.log(`✅ Orden ${orderId} actualizada a 'paid' y email enviado`);
+                // 7. Iniciar contador de descargas
+                await supabaseAdmin.from("descargas").insert({
+                    order_id: orderId,
+                    user_email: order.customer_email,
+                    contador: 0,
+                });
+
+                console.log(`✅ Orden ${orderId} actualizada a 'paid', contador iniciado y email enviado`);
             }
         }
 
@@ -821,3 +828,65 @@ app.put("/albums/:id", async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 });
+
+const MAX_DESCARGAS = 3; // ajustalo como quieras
+
+app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => {
+    try {
+        const { photoId, orderId, customerEmail } = req.params;
+
+        // Buscar registro de descargas
+        const { data: registro, error: errSelect } = await supabaseAdmin
+            .from("descargas")
+            .select("*")
+            .eq("compra_id", orderId)
+            .eq("user_id", customerEmail) // ⚠️ si guardás uuid de usuario, ajustá aquí
+            .single();
+
+        if (errSelect && errSelect.code !== "PGRST116") {
+            throw errSelect;
+        }
+
+        // Si no hay registro, lo creamos
+        if (!registro) {
+            await supabaseAdmin.from("descargas").insert({
+                compra_id: orderId,
+                user_id: customerEmail,
+                contador: 0,
+            });
+        } else {
+            // Chequear límite
+            if (registro.contador >= MAX_DESCARGAS) {
+                return res.status(403).send("⚠️ Límite de descargas alcanzado. Contacta a soporte.");
+            }
+        }
+
+        // Buscar foto
+        const { data: photoData, error: errPhoto } = await supabaseAdmin.from("photos").select("*").eq("id", photoId).single();
+
+        if (errPhoto || !photoData) {
+            return res.status(404).send("Foto no encontrada");
+        }
+
+        // Generar URL firmada
+        const { data: signedUrlData, error: errSigned } = await supabaseAdmin.storage
+            .from("originals") // bucket privado de originales
+            .createSignedUrl(photoData.original_path, 60); // válido 60s
+
+        if (errSigned) throw errSigned;
+
+        // Incrementar contador
+        await supabaseAdmin
+            .from("descargas")
+            .update({ contador: (registro?.contador || 0) + 1 })
+            .eq("compra_id", orderId)
+            .eq("user_id", customerEmail);
+
+        // Redirigir a la URL firmada
+        return res.redirect(signedUrlData.signedUrl);
+    } catch (err) {
+        console.error("❌ Error en download-photo:", err);
+        res.status(500).send("Error interno al generar descarga");
+    }
+});
+

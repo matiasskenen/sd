@@ -105,7 +105,7 @@ async function fetchOrderDetailsWithRetry(orderId, customerEmail, maxRetries = 1
                     photoItem.innerHTML = `
         <img src="${photo.watermarked_url}" alt="Foto Comprada">
         <a href="${BACKEND_URL}/download-photo/${photo.id}/${orderId}/${customerEmail}" 
-           class="btn-primary text-sm inline-block">Descargar Imagen</a>
+        class="btn-primary text-sm inline-block">Descargar Imagen</a>
         ${expiresMessage}
     `;
 
@@ -143,3 +143,5 @@ document.addEventListener("DOMContentLoaded", () => {
     setLoading(true);
     fetchOrderDetailsWithRetry(orderId, customerEmail).finally(() => setLoading(false));
 });
+
+
