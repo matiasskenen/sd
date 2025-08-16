@@ -525,16 +525,15 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                 }
 
                 // 5. Enviar email con EmailJS
-                const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`,
-                    },
-                    body: JSON.stringify({
+                const axios = require("axios"); // arriba en tus imports
+
+                // dentro del webhook, en lugar de fetch a EmailJS:
+                try {
+                    const emailRes = await axios.post("https://api.emailjs.com/api/v1.0/email/send", {
                         service_id: process.env.EMAILJS_SERVICE_ID,
                         template_id: process.env.EMAILJS_TEMPLATE_ID,
-                        user_id: process.env.EMAILJS_PUBLIC_KEY, 
+                        user_id: process.env.EMAILJS_PUBLIC_KEY,
+                        accessToken: process.env.EMAILJS_PRIVATE_KEY, // 👈 importante, sin esto da error
                         template_params: {
                             name: "Cliente",
                             email: order.customer_email,
@@ -542,8 +541,12 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                             message: "Gracias por tu compra. Descargá tus fotos desde este enlace:",
                             download_link: signedUrls[0],
                         },
-                    }),
-                });
+                    });
+
+                    console.log("📧 EmailJS enviado:", emailRes.data);
+                } catch (err) {
+                    console.error("❌ Error enviando email:", err.response?.data || err.message);
+                }
 
                 console.log("📧 Respuesta de EmailJS:", await emailRes.text());
 
