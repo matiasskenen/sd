@@ -86,7 +86,18 @@ async function fetchOrderDetailsWithRetry(orderId, customerEmail, maxRetries = 1
                 }
 
                 // Render de fotos compradas
+                // Render de fotos compradas
                 purchasedPhotosContainer.innerHTML = "";
+
+                // Preparo el mensaje de expiración una sola vez
+                let expiresMessage = "";
+                if (data.order.download_expires_at) {
+                    const expiresAt = new Date(data.order.download_expires_at);
+                    expiresMessage = `<div class="text-xs text-gray-500 mt-1">
+        Link válido hasta el ${expiresAt.toLocaleDateString("es-AR")} ${expiresAt.toLocaleTimeString("es-AR")}
+    </div>`;
+                }
+
                 data.photos.forEach((photo) => {
                     const photoItem = document.createElement("div");
                     photoItem.className = "photo-item";
