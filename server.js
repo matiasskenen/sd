@@ -524,13 +524,16 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                     if (!signedError) signedUrls.push(signedData.signedUrl);
                 }
                 // 6. Actualizar estado a paid
+
+                const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // ahora + 7 días
                 await supabaseAdmin
                     .from("orders")
-                    .update({ status: "paid", mercado_pago_payment_id: orderData.payments?.[0]?.id || null,
-                    download_expires_at: expiresAt.toISOString() // guardamos en formato ISO
+                    .update({
+                        status: "paid",
+                        mercado_pago_payment_id: orderData.payments?.[0]?.id || null,
+                        download_expires_at: expiresAt.toISOString(), // guardamos en formato ISO
                     })
                     .eq("id", orderId);
-
 
                 console.log(`✅ Orden ${orderId} actualizada a 'paid' y email enviado`);
             }
