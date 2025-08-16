@@ -299,7 +299,6 @@ app.post("/create-payment-preference", async (req, res) => {
                 failure: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
                 pending: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
             },
-            auto_return: "approved",
             notification_url: `${process.env.BACKEND_URL}/mercadopago-webhook`,
         };
 
