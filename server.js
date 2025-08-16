@@ -527,11 +527,13 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                 // 5. Enviar email con EmailJS
                 const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`,
+                    },
                     body: JSON.stringify({
                         service_id: process.env.EMAILJS_SERVICE_ID,
                         template_id: process.env.EMAILJS_TEMPLATE_ID,
-                        user_id: process.env.EMAILJS_USER_ID,
                         template_params: {
                             name: "Cliente",
                             email: order.customer_email,
@@ -560,8 +562,6 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
         res.sendStatus(500);
     }
 });
-
-
 
 // --- NUEVA RUTA: Obtener Detalles de Orden para Página de Éxito ---
 // Esta ruta es llamada por success.html para obtener las fotos compradas.
@@ -837,5 +837,3 @@ app.put("/albums/:id", async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 });
-
-
