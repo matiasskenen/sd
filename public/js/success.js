@@ -91,21 +91,8 @@ async function fetchOrderDetailsWithRetry(orderId, customerEmail, maxRetries = 1
                     const photoItem = document.createElement("div");
                     photoItem.className = "photo-item";
 
-                    // mensaje de expiración (verde si válido)
-                    let expiresMessage = "";
-                    if (data.order.download_expires_at) {
-                        const expiresAt = new Date(data.order.download_expires_at);
-                        expiresMessage = `
-            <div class="message success text-xs mt-2">
-                Válido hasta el ${expiresAt.toLocaleDateString("es-AR")} 
-                ${expiresAt.toLocaleTimeString("es-AR")}
-            </div>
-        `;
-                    }
-
                     photoItem.innerHTML = `
         <img src="${photo.watermarked_url}" alt="Foto Comprada">
-        <p class="text-sm text-gray-700 mb-2">Código: ${photo.student_code || "N/A"}</p>
         <a href="${BACKEND_URL}/download-photo/${photo.id}/${orderId}/${customerEmail}" 
            class="btn-primary text-sm inline-block">Descargar Imagen</a>
         ${expiresMessage}
