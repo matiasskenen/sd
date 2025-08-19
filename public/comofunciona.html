@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cómo Funciona - Plataforma Escolar</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de la fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Estilos CSS para la página -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+        .how-it-works-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        .how-it-works-section .step-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e40af; /* Azul oscuro */
+            margin-bottom: 0.5rem;
+        }
+        .how-it-works-section .step-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937; /* Gris oscuro */
+            margin-bottom: 0.5rem;
+        }
+        .how-it-works-section .step-description {
+            color: #4b5563; /* Gris */
+            max-width: 600px;
+        }
+        .divider {
+            border-top: 2px dashed #d1d5db; /* Línea divisoria */
+            width: 100%;
+            max-width: 400px;
+            margin: 2rem auto;
+        }
+        .btn-primary {
+            background-color: #1e40af; /* New color: blue-800 */
+            color: #ffffff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn-primary:hover {
+            background-color: #1e3a8a; /* New color: blue-900 */
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md py-4 sticky top-0 z-50">
+      <div class="container flex justify-between items-center">
+        <div class="text-2xl font-bold text-blue-800">
+          <a href="#" class="hover:text-blue-900 transition-colors">📷 [Tu Logo Aquí]</a>
+        </div>
+        <nav>
+          <ul class="flex space-x-4 md:space-x-6">
+            <li><a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Inicio</a></li>
+            <li><a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Galeria</a></li>
+            <li><a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Cómo Funciona</a></li>
+            <li><a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Contacto</a></li>
+            <li>
+              <a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors" id="cartLink">
+                Carrito (<span id="cart-count">0</span>)
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container py-8">
+        <div class="card">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">📸 Cómo Funciona</h1>
+            
+            <section class="how-it-works-section">
+                <div class="step-number">1</div>
+                <h2 class="step-title">Búsqueda del Álbum</h2>
+                <p class="step-description">
+                    En la página de inicio de la galería, utiliza el menú desplegable para seleccionar el colegio o el evento correspondiente. Haz clic en el botón **"Buscar Fotos"** para acceder al álbum asociado.
+                </p>
+            </section>
+            
+            <div class="divider"></div>
+
+            <section class="how-it-works-section">
+                <div class="step-number">2</div>
+                <h2 class="step-title">Visualización y Selección</h2>
+                <p class="step-description">
+                    Una vez en el álbum, podrás ver todas las fotos con una marca de agua de seguridad. Haz clic en cualquier imagen para ver una vista previa en mayor tamaño y examinar los detalles.
+                </p>
+            </section>
+
+            <div class="divider"></div>
+
+            <section class="how-it-works-section">
+                <div class="step-number">3</div>
+                <h2 class="step-title">Adición al Carrito</h2>
+                <p class="step-description">
+                    Para seleccionar una foto, simplemente haz clic en el botón **"Añadir al Carrito"** desde la vista detallada de la imagen. Puedes continuar navegando y agregando tantas fotos como desees al carrito.
+                </p>
+            </section>
+
+            <div class="divider"></div>
+
+            <section class="how-it-works-section">
+                <div class="step-number">4</div>
+                <h2 class="step-title">Finalización de la Compra</h2>
+                <p class="step-description">
+                    Una vez que tu selección esté completa, haz clic en el ícono del carrito para revisar tu pedido. Luego, haz clic en **"IR A PAGAR"**. Se te solicitará un email para recibir la confirmación de la transacción y un enlace directo para descargar las fotos. Tras completar el pago, recibirás las fotos en alta resolución y **sin la marca de agua**.
+                </p>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-auto">
+      <div class="container text-center text-sm">
+        <p>&copy; 2025 [Nombre del Fotógrafo]. Todos los derechos reservados.</p>
+        <p class="mt-2">Contacto: info@fotografo.com | Tel: +54 9 11 1234-5678</p>
+        <div class="flex justify-center space-x-4 mt-3">
+          <a href="#" class="hover:text-blue-400 transition-colors">Facebook</a>
+          <a href="#" class="hover:text-blue-400 transition-colors">Instagram</a>
+        </div>
+      </div>
+    </footer>
+</body>
+</html>
