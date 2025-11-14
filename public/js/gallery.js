@@ -275,6 +275,7 @@ const showPhotoDetailModal = (photo) => {
                 quantity: 1,
             },
         ];
+        
 
         setLoading(true);
         showMessage("Procesando tu compra directa...", "info");
