@@ -266,7 +266,8 @@ app.post("/login", async (req, res) => {
 });
 
 // Ruta para crear una preferencia de pago en Mercado Pago
-app.post("/create-payment-preference", async (req, res) => {
+// Handler para crear preferencia de pago (factorizado para ser reutilizable)
+async function createPaymentPreferenceHandler(req, res) {
     const { cart, customerEmail } = req.body;
     if (!cart?.length || !customerEmail) {
         return res.status(400).json({ message: "El carrito está vacío o falta el email." });
@@ -316,7 +317,11 @@ app.post("/create-payment-preference", async (req, res) => {
         console.error("create-payment-preference error:", e);
         return res.status(500).json({ message: "Error interno al crear preferencia." });
     }
-});
+}
+
+// Rutas que usan el mismo handler (alias para compatibilidad con frontend antiguo)
+app.post("/create-payment-preference", createPaymentPreferenceHandler);
+app.post("/payments/create-payment-preference", createPaymentPreferenceHandler);
 
 app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => {
     const albumId = req.params.albumId;
