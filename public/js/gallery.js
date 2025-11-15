@@ -281,7 +281,7 @@ const showPhotoDetailModal = (photo) => {
         showMessage("Procesando tu compra directa...", "info");
 
         try {
-            const response = await fetch(`${BACKEND_URL}/create-payment-preference`, {
+            const response = await fetch(`${BACKEND_URL}/payments/create-payment-preference`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -409,7 +409,7 @@ document.getElementById("cartEmailConfirmBtn").addEventListener("click", async (
     showMessage("Procesando tu pedido...", "info");
 
     try {
-        const response = await fetch(`${BACKEND_URL}/create-payment-preference`, {
+        const response = await fetch(`${BACKEND_URL}/payments/create-payment-preference`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cart: cart, customerEmail: customerEmail }),

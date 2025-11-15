@@ -294,7 +294,6 @@ app.post("/create-payment-preference", async (req, res) => {
         const prefBody = {
             items: [{ title: "Compra de Fotos Escolares", unit_price: Number(totalAmount), quantity: 1, currency_id: "ARS" }],
             external_reference: orderData.id, // <- lo usamos en el webhook
-            auto_return: "approved",
             back_urls: {
                 success: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
                 failure: `${process.env.FRONTEND_URL}/success.html?orderId=${orderData.id}&customerEmail=${encodeURIComponent(customerEmail)}`,
