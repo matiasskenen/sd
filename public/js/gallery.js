@@ -70,13 +70,13 @@ const updateCartUI = () => {
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    cartCountSpan.textContent = cartCount;
+    if (cartCountSpan) cartCountSpan.textContent = cartCount;
     // cartTotalCheckoutSpan.textContent = cartTotal.toFixed(2); // ELIMINADO
 
     // Update cart modal totals (if modal is open or for consistency)
-    cartModalSubtotalSpan.textContent = cartTotal.toFixed(2);
-    cartModalTotalSpan.textContent = cartTotal.toFixed(2);
-    cartModalCheckoutBtn.disabled = cartCount === 0;
+    if (cartModalSubtotalSpan) cartModalSubtotalSpan.textContent = cartTotal.toFixed(2);
+    if (cartModalTotalSpan) cartModalTotalSpan.textContent = cartTotal.toFixed(2);
+    if (cartModalCheckoutBtn) cartModalCheckoutBtn.disabled = cartCount === 0;
 };
 
 const addToCart = (photoToAdd) => {
@@ -366,74 +366,83 @@ recentAlbumsContainer.addEventListener("click", (event) => {
     }
 });
 
-// Event listener for cartLink to open the cart modal
-cartLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    showCartModal();
-});
+// Event listener for cartLink to open the cart modal (solo si existe el elemento)
+if (cartLink) {
+    cartLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        showCartModal();
+    });
+}
 
 // Event listener for remove buttons in the cart modal (delegation)
-cartModalItemsContainer.addEventListener("click", (event) => {
-    if (event.target.tagName === "BUTTON" && event.target.dataset.photoId) {
-        const photoId = event.target.dataset.photoId;
-        removeFromCart(photoId);
-    }
-});
+if (cartModalItemsContainer) {
+    cartModalItemsContainer.addEventListener("click", (event) => {
+        if (event.target.tagName === "BUTTON" && event.target.dataset.photoId) {
+            const photoId = event.target.dataset.photoId;
+            removeFromCart(photoId);
+        }
+    });
+}
 
 // Event listener for checkout button inside cart modal
 // Event listener para el botón de pagar dentro del carrito
-cartModalCheckoutBtn.addEventListener("click", () => {
-    const cart = getCart();
-    if (cart.length === 0) {
-        showMessage("Tu carrito está vacío. Agrega algunas fotos antes de finalizar la compra.", "error");
-        return;
-    }
-    hideCartModal();
-    showCartEmailModal();
-});
+if (cartModalCheckoutBtn) {
+    cartModalCheckoutBtn.addEventListener("click", () => {
+        const cart = getCart();
+        if (cart.length === 0) {
+            showMessage("Tu carrito está vacío. Agrega algunas fotos antes de finalizar la compra.", "error");
+            return;
+        }
+        hideCartModal();
+        showCartEmailModal();
+    });
+}
 
 // Event listener para confirmar compra desde el modal de email
-document.getElementById("cartEmailConfirmBtn").addEventListener("click", async () => {
-    const cart = getCart();
-    const customerEmail = document.getElementById("cartEmailInput").value.trim();
-    const emailError = document.getElementById("cartEmailError");
+const cartEmailConfirmBtn = document.getElementById("cartEmailConfirmBtn");
+if (cartEmailConfirmBtn) {
+    cartEmailConfirmBtn.addEventListener("click", async () => {
+        const cart = getCart();
+        const customerEmail = document.getElementById("cartEmailInput").value.trim();
+        const emailError = document.getElementById("cartEmailError");
 
-    if (!isValidEmail(customerEmail)) {
-        emailError.classList.remove("hidden");
-        return;
-    } else {
-        emailError.classList.add("hidden");
-    }
-
-    setLoading(true);
-    showMessage("Procesando tu pedido...", "info");
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/create-payment-preference`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cart: cart, customerEmail: customerEmail }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            hideCartEmailModal();
-            showMessage("Pedido creado. Redirigiendo a Mercado Pago...", "success");
-            saveCart([]);
-            updateCartUI();
-            window.location.href = data.init_point;
+        if (!isValidEmail(customerEmail)) {
+            if (emailError) emailError.classList.remove("hidden");
+            return;
         } else {
-            showMessage(`Error al crear pedido: ${data.message || "Error desconocido"}`, "error");
-            console.error("Detalles del error:", data);
+            if (emailError) emailError.classList.add("hidden");
         }
-    } catch (error) {
-        console.error("Error de red o del servidor al crear preferencia:", error);
-        showMessage(`Error de conexión: ${error.message}. Asegúrate de que el backend esté funcionando.`, "error");
-    } finally {
-        setLoading(false);
-    }
-});
+
+        setLoading(true);
+        showMessage("Procesando tu pedido...", "info");
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/create-payment-preference`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cart: cart, customerEmail: customerEmail }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                hideCartEmailModal();
+                showMessage("Pedido creado. Redirigiendo a Mercado Pago...", "success");
+                saveCart([]);
+                updateCartUI();
+                window.location.href = data.init_point;
+            } else {
+                showMessage(`Error al crear pedido: ${data.message || "Error desconocido"}`, "error");
+                console.error("Detalles del error:", data);
+            }
+        } catch (error) {
+            console.error("Error de red o del servidor al crear preferencia:", error);
+            showMessage(`Error de conexión: ${error.message}. Asegúrate de que el backend esté funcionando.`, "error");
+        } finally {
+            setLoading(false);
+        }
+    });
+}
 
 // --- Initial Load ---
 document.addEventListener("DOMContentLoaded", () => {

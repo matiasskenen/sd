@@ -38,10 +38,6 @@ const client = new mercadopago.MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-// LOG PARA DEPURACIÓN: Muestra el token completo al iniciar
-console.log("MP Access Token siendo utilizado por el cliente:", process.env.MERCADOPAGO_ACCESS_TOKEN);
-// FIN LOG
-
 const preference = new mercadopago.Preference(client);
 const payment = new mercadopago.Payment(client);
 
@@ -121,8 +117,13 @@ const upload = multer({
 
 // --- Rutas ---
 
-// Ruta de prueba para verificar que el servidor está funcionando
+// Servir la página principal (index.html) en la raíz
 app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Ruta de estado / prueba para verificar que el servidor está funcionando
+app.get("/status", (req, res) => {
     res.send("Backend de la Plataforma de Fotos Escolares funcionando!");
 });
 
@@ -364,7 +365,7 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
             const watermarkedFilePath = `albums/${albumId}/watermarked/${uniqueFileName}`;
 
             // Subir imagen original
-            const { error: uploadOriginalError } = await supabaseAdmin.storage.from("original-photos").upload(originalFilePath, file.buffer, {
+            const { error: uploadOriginalError } = await supabaseAdmin.storage.from(ORIGINAL_BUCKET_NAME).upload(originalFilePath, file.buffer, {
                 contentType: file.mimetype,
                 upsert: false,
             });
@@ -456,10 +457,52 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
 // --- NUEVA RUTA: Webhook de Mercado Pago ---
 // Ruta RAW: poner ANTES de app.use(express.json()) global, o usar el middleware específico como abajo.
 // Si mantenés tu express.json() global, declaralo así con middleware específico:
+const replayProtectionCache = new Map(); // In-memory cache for anti-replay protection
+const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
+
 app.post("/mercadopago-webhook", express.json(), async (req, res) => {
     console.log("📩 Webhook recibido de Mercado Pago");
 
     try {
+        const signature = req.headers["x-mp-signature"];
+        if (!signature) {
+            console.error("❌ Falta la firma del webhook (x-mp-signature).");
+            return res.status(400).send("Falta la firma del webhook.");
+        }
+
+        const payload = JSON.stringify(req.body);
+        const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+
+        const crypto = require("crypto");
+        const hash = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+
+        if (hash !== signature) {
+            console.error("❌ Firma del webhook inválida.");
+            return res.status(401).send("Firma del webhook inválida.");
+        }
+
+        const webhookId = req.body.id || req.query.id;
+        const timestamp = req.headers["x-mp-timestamp"];
+
+        if (!webhookId || !timestamp) {
+            console.error("❌ Falta el ID o el timestamp del webhook.");
+            return res.status(400).send("Falta el ID o el timestamp del webhook.");
+        }
+
+        const now = Date.now();
+        if (Math.abs(now - Number(timestamp)) > REPLAY_CACHE_TTL) {
+            console.error("❌ Timestamp del webhook fuera de rango.");
+            return res.status(400).send("Timestamp del webhook fuera de rango.");
+        }
+
+        if (replayProtectionCache.has(webhookId)) {
+            console.error("❌ Webhook duplicado detectado.");
+            return res.status(409).send("Webhook duplicado detectado.");
+        }
+
+        replayProtectionCache.set(webhookId, true);
+        setTimeout(() => replayProtectionCache.delete(webhookId), REPLAY_CACHE_TTL);
+
         const { topic, id, resource } = req.query;
         console.log("Query Params:", req.query);
         console.log("Cuerpo del Webhook:", req.body);
@@ -471,7 +514,7 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
             const paymentId = id || req.body.data?.id || req.body.resource;
             console.log("🔍 ID de pago:", paymentId);
 
-            const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+            const mpRes = await fetch(`https://api.mercadolibre.com/v1/payments/${paymentId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
@@ -488,7 +531,7 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
             merchantOrderId = id || resource?.split("/").pop();
             console.log("🔍 ID de merchant_order:", merchantOrderId);
 
-            const orderRes = await fetch(`https://api.mercadopago.com/merchant_orders/${merchantOrderId}`, {
+            const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${merchantOrderId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
@@ -507,7 +550,7 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
                 }
 
                 // 2. Buscar fotos desde order_items
-                const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq("order_id", orderId);
+                const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
 
                 if (itemsError || !orderItems.length) {
                     console.error("❌ Error obteniendo order_items:", itemsError);
@@ -688,7 +731,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         }
 
         // 5. Generar URL firmada (válida por 7 días)
-        const { data: signed, error: signedError } = await supabaseAdmin.storage.from("original-photos").createSignedUrl(photo.original_file_path, 60 * 60 * 24 * 7);
+        const { data: signed, error: signedError } = await supabaseAdmin.storage.from(ORIGINAL_BUCKET_NAME).createSignedUrl(photo.original_file_path, 60 * 60 * 24 * 7);
 
         if (signedError || !signed?.signedUrl) {
             console.error(`❌ Error creando URL firmada para ${photo.original_file_path}:`, signedError?.message);
@@ -845,7 +888,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         const { data: registro, error: errSelect } = await supabaseAdmin
             .from("descargas")
             .select("*")
-            .eq("compra_id", orderId)
+            .eq(ORDER_FIELD_NAME, orderId)
             .eq("user_id", customerEmail) // ⚠️ si guardás uuid de usuario, ajustá aquí
             .single();
 
@@ -856,7 +899,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         // Si no hay registro, lo creamos
         if (!registro) {
             await supabaseAdmin.from("descargas").insert({
-                compra_id: orderId,
+                [ORDER_FIELD_NAME]: orderId,
                 user_id: customerEmail,
                 contador: 0,
             });
@@ -876,7 +919,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
 
         // Generar URL firmada
         const { data: signedUrlData, error: errSigned } = await supabaseAdmin.storage
-            .from("originals") // bucket privado de originales
+            .from(ORIGINAL_BUCKET_NAME) // bucket privado de originales
             .createSignedUrl(photoData.original_path, 60); // válido 60s
 
         if (errSigned) throw errSigned;
@@ -885,7 +928,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         await supabaseAdmin
             .from("descargas")
             .update({ contador: (registro?.contador || 0) + 1 })
-            .eq("compra_id", orderId)
+            .eq(ORDER_FIELD_NAME, orderId)
             .eq("user_id", customerEmail);
 
         // Redirigir a la URL firmada

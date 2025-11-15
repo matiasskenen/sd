@@ -1,272 +1,657 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-s1.0" />
-    <title>Fotografía Escolar - Inicio</title>
-    <!-- Carga de Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carga de la fuente Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    
-    <!-- Estilos CSS para la página -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreaterPhoto - Galería Escolar</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
     <style>
+        /* ---------- VARIABLES ---------- */
+        :root {
+            --bg: #1A1A1A;
+            --card: #282828;
+            --text: #FFFFFF;
+            --text-faded: rgba(255,255,255,0.7);
+            --border: #444;
+            --yellow: #FFC000;
+        }
+
+        /* ---------- RESET ---------- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            font-family: "Poppins", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            line-height: 1.6;
         }
+
+        a { text-decoration: none; color: var(--text-faded); transition: color 0.3s; }
+        a:hover { color: var(--text); }
+
+        .hidden { display: none !important; }
+
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
+            width: 100%;
+            max-width: 1300px;
+            margin: auto;
+            padding: 0 40px;
         }
-        .card {
-            background-color: #ffffff;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 2rem;
+
+        /* ---------- HERO + NAV DEL SEGUNDO CÓDIGO ---------- */
+
+        .hero-section {
+            width: 100%;
+            background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)),
+                              url('assets/lala.jpg');
+            background-size: cover;
+            background-position: center 20%;
+            position: relative;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
         }
-        .input-field {
-            border-radius: 0.5rem;
-            padding: 0.75rem 1rem;
-            border: 1px solid #d1d5db;
-            transition: border-color 0.2s;
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 0;
+            z-index: 10;
         }
-        .input-field:focus {
-            outline: none;
-            border-color: #1e40af;
-        }
-        .btn-primary {
-            background-color: #1e40af;
-            color: #ffffff;
+
+        .logo {
+            font-size: 1.4em;
             font-weight: 600;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.2s, transform 0.1s;
+            color: var(--text);
+            display: flex;
+            align-items: center;
         }
-        .btn-primary:hover {
-            background-color: #1e3a8a;
-            transform: translateY(-2px);
+
+        .logo-icon {
+            margin-right: 8px;
+            width: 24px;
+            height: 24px;
         }
-        .btn-secondary {
-            background-color: #e5e7eb;
-            color: #4b5563;
+
+        .nav-links { display: flex; align-items: center; }
+        .nav-links a { margin-left: 30px; font-size: 0.9em; }
+
+        .btn-login {
+            border: 1px solid var(--text-faded);
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: var(--text-faded);
+        }
+
+        .hero-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding-bottom: 80px;
+            position: relative;
+        }
+
+        .hero-content h1 {
+            font-size: 4.5em;
+            font-weight: 700;
+            margin-bottom: 100px;
+        }
+
+        /* ---------- SECCIONES DE MARKETING (GRID & CAROUSEL) ---------- */
+
+        .marketing-section {
+            width: 100%;
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+        }
+        .marketing-section h2 {
+            font-size: 0.8em;
             font-weight: 600;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.2s, transform 0.1s;
+            letter-spacing: 2px;
+            color: var(--text-faded);
+            margin-bottom: 5px;
+            text-transform: uppercase;
         }
-        .btn-secondary:hover {
-            background-color: #d1d5db;
-            transform: translateY(-2px);
+        .marketing-section h3 {
+            font-size: 2.8em;
+            font-weight: 800;
+            margin-bottom: 40px;
         }
-        .photo-card {
-            background-color: #ffffff;
-            border-radius: 1rem;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
-            transition: transform 0.2s, box-shadow 0.2s;
+
+        .classes-grid-wrapper { max-width: 1300px; margin: 0 auto; position: relative; }
+        .classes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+        .class-card {
+            position: relative;
             cursor: pointer;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 280px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-        .photo-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        .class-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
         }
-        .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1rem;
+        .card-image-container {
+            width: 100%;
+            height: 70%;
+            overflow: hidden;
+            border-bottom: 1px solid var(--border);
         }
-        .modal {
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
+        .class-card img {
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+        .class-card:hover img { transform: scale(1.08); }
+
+        .card-info {
+            padding: 15px 20px;
+            text-align: left;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .card-info h4 {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: var(--text);
+        }
+        .card-info p {
+            font-size: 0.75em;
+            font-weight: 400;
+            color: var(--text-faded);
+        }
+
+        .arrow-right {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 45px;
+            height: 45px;
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(5px);
+            font-size: 1.8em;
+            color: var(--text);
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            transition: background-color 0.3s ease;
+        }
+        .arrow-right:hover { background-color: rgba(255,255,255,0.1); }
+
+        /* Carrusel */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            height: 60vh;
+            min-height: 400px;
+        }
+        #carouselSlides { position: relative; width: 100%; height: 100%; }
+        .carousel-slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: flex-end;
+            padding: 30px;
+            z-index: 1;
+        }
+        .carousel-slide.active { opacity: 1; }
+
+        .slide-info {
+            z-index: 2;
+            text-align: left;
+            max-width: 50%;
+            background: rgba(0,0,0,0.6);
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+        .slide-info h4 { font-size: 2em; font-weight: 700; margin-bottom: 5px; }
+        .slide-info p { font-size: 1em; color: var(--text-faded); }
+
+        /* ---------- GALERÍA ESCOLAR (del primer código) ---------- */
+
+        .gallery-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 30px;
+            border-radius: 16px;
+            margin-top: -100px;
+            position: relative;
+            z-index: 5;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .photo-grid {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+
+        .photo-item {
+            background: #202020;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .photo-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+
+        .btn-primary {
+            background: var(--yellow);
+            color: #000;
+            padding: 10px 18px;
+            border-radius: 50px;
+            width: 100%;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 8px;
+            border: none;
+        }
+
+        .message {
+            margin-top: 12px;
+            background: #333;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* ---------- MODALES ---------- */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
         }
         .modal-content {
-            background-color: #ffffff;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            position: relative;
-            animation: fadeIn 0.3s ease-out;
-            max-width: 90%;
-            max-height: 90%;
-            overflow-y: auto;
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            width: 90%;
+            max-width: 900px;
+            border-radius: 18px;
         }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
+
+        /* ---------- FOOTER ---------- */
+
+        .main-footer {
+            margin-top: 70px;
+            background: #111;
+            padding: 60px 0 20px;
+            border-top: 1px solid var(--border);
         }
-        .loading-spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border-left-color: #1e40af;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            vertical-align: middle;
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 40px;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        /* ---------- RESPONSIVE ---------- */
+
+        @media(max-width:1024px){
+            .hero-section { height: 80vh; }
+            .gallery-card { margin-top: -80px; }
+            .classes-grid { grid-template-columns: repeat(2, 1fr); }
+            .class-card { height: 250px; }
+            .arrow-right { right: 0px; }
+            .carousel-container { height: 50vh; min-height: 300px; }
+            .slide-info h4 { font-size: 1.5em; }
         }
-        .watermark-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
+
+        @media(max-width:768px){
+            .hero-section { height: 60vh; }
+            .gallery-card { margin-top: -40px; }
+            .photo-grid { grid-template-columns: repeat(2, 1fr); }
+            .classes-grid { grid-template-columns: 1fr; }
+            .class-card { height: 200px; }
+            .arrow-right { display: none; }
+            .footer-grid { grid-template-columns: 1fr; text-align: center; }
+            .carousel-container { height: 40vh; min-height: 250px; }
+            .slide-info h4 { font-size: 1.2em; }
+        }
+
+        /* Barra divisoria translúcida entre secciones */
+        .transparent-divider {
+            height: 8px; /* grosor de la barra */
             width: 100%;
-            height: 100%;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50" y="50" font-family="sans-serif" font-size="12" fill="rgba(255, 255, 255, 0.5)" text-anchor="middle" dominant-baseline="middle" transform="rotate(-45 50 50)">DEMO</text></svg>');
-            background-repeat: repeat;
+            background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+            margin: 36px 0; /* separación vertical alrededor de la barra */
+            border-radius: 999px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6) inset;
+            border: 1px solid rgba(255,255,255,0.02);
         }
-        .cart-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .cart-item:last-child {
-            border-bottom: none;
-        }
-        .cart-item-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .cart-item-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 0.5rem;
-        }
-        .cart-total-summary {
-            text-align: right;
-            font-size: 1.25rem;
-            font-weight: 500;
-        }
-        .total-price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1e40af;
-        }
-        @media (min-width: 768px) {
-            .modal-content {
-                max-width: 900px;
-            }
+
+        /* Ocultar visualmente el enlace del carrito solo en index.html
+           Mantener el elemento en el DOM para que la lógica JS siga funcionando. */
+        #cartLink {
+            display: none !important;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
 
-    <!-- Header -->
-    <header class="bg-white shadow-md py-4 sticky top-0 z-50">
-      <div class="container flex justify-between items-center">
-        <div class="text-2xl font-bold text-blue-800">
-          <a href="#" class="hover:text-blue-900 transition-colors">📷 [Tu Logo Aquí]</a>
+<body>
+
+<!-- ---------- HERO DEL SEGUNDO CÓDIGO ---------- -->
+<div class="hero-section">
+    <div class="container">
+        <header class="navbar">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#FFFFFF"/>
+                    <circle cx="12" cy="12" r="3" fill="#FFC000"/>
+                </svg>
+                GreaterPhoto
+            </div>
+
+            <nav class="nav-links">
+                <a href="#">Photographers</a>
+                <a href="#">Classes</a>
+                <a href="#">Workshops</a>
+                <a href="#" id="cartLink">Carrito (<span id="cart-count">0</span>)</a>
+                
+            </nav>
+        </header>
+    </div>
+
+    <div class="hero-content">
+        <h1>Landscape Photography</h1>
+    </div>
+</div>
+
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    /* Usar un color de fondo oscuro similar al de tu página principal */
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+  }
+</style>
+
+<!--
+Sección optimizada para un flujo de QR con una mini-explicación de 3 pasos.
+Objetivo: Guiar al usuario (padre/madre) a la Galería de Fotos Escolares.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    /* Usar un color de fondo oscuro similar al de tu página principal */
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+  }
+</style>
+
+<section id="servicio-principal" class="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto text-center bg-gray-900 p-8 sm:p-12 rounded-2xl shadow-2xl border border-gray-700">
+    
+    <!-- Título principal enfocado en el servicio -->
+    <h2 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-4">
+      Encuentra las Fotos de tu Hijo/a
+    </h2>
+    
+    <!-- Subtítulo y explicación de la acción -->
+    <p class="mt-4 text-xl text-gray-400 max-w-3xl mx-auto mb-12">
+      Sigue estos sencillos pasos para acceder, seleccionar y comprar tus recuerdos escolares.
+    </p>
+
+    <!-- Mini-Explicación de 3 Pasos -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:mb-16">
+        
+        <!-- Paso 1: Búsqueda y Código -->
+        <div class="text-center">
+            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">1</div>
+            <h3 class="text-xl font-semibold text-white mb-2">Busca tu Álbum</h3>
+            <p class="text-gray-400 text-sm">Ingresa a la galería y utiliza el código que te hemos proporcionado.</p>
         </div>
-        <nav>
-          <ul class="flex space-x-4 md:space-x-6">
-            <li><a href="index.html" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Inicio</a></li>
-            <li><a href="gallery.html" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Galeria</a></li>
-            <li><a href="comofunciona.html" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Cómo Funciona</a></li>
-            <li><a href="contacto.html" class="text-gray-700 hover:text-blue-600 font-medium transition-colors">Contacto</a></li>
-            <li>
-              <a href="#" class="text-gray-700 hover:text-blue-600 font-medium transition-colors" id="cartLink">
-                Carrito (<span id="cart-count">0</span>)
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </header>
 
-    <!-- Banner con botón "Accede Ahora" -->
-    <div class="relative bg-gray-900 text-white py-20 md:py-32 bg-center bg-cover" style="background-image: url('https://placehold.co/1200x600/1e40af/ffffff?text=Tu+banner+principal+aquí');">
-        <div class="absolute inset-0 bg-black opacity-50"></div>
-        <div class="relative container text-center z-10">
-            <h1 class="text-4xl md:text-5xl font-extrabold mb-4">¡BIENVENIDO!</h1>
-            <p class="text-lg md:text-xl mb-8 max-w-2xl mx-auto">
-                Gracias por participar en nuestros eventos. Aquí puedes ver y descargar todas tus fotos.
-            </p>
-            <a href="#main-content" class="btn-primary inline-block text-lg bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold px-8 py-3 rounded-full transition-all">ACCEDE AHORA</a>
+        <!-- Paso 2: Visualización y Selección -->
+        <div class="text-center">
+            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">2</div>
+            <h3 class="text-xl font-semibold text-white mb-2">Selecciona tus Fotos</h3>
+            <p class="text-gray-400 text-sm">Visualiza las imágenes en alta resolución y añade tus favoritas al carrito.</p>
+        </div>
+        
+        <!-- Paso 3: Finalización de la Compra -->
+        <div class="text-center">
+            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">3</div>
+            <h3 class="text-xl font-semibold text-white mb-2">Descarga y Disfruta</h3>
+            <p class="text-gray-400 text-sm">Finaliza la compra y recibe un enlace para descargar tus fotos sin marca de agua.</p>
+        </div>
+
+    </div>
+
+    <!-- Separador visual -->
+    <hr class="border-t border-gray-700 max-w-md mx-auto mb-10" />
+
+    <!-- Botón de Llamado a la Acción (CTA) principal -->
+    <a href="gallery.html" class="inline-flex items-center justify-center 
+           px-12 py-4 border border-transparent 
+           text-lg sm:text-xl font-bold rounded-full 
+           text-white bg-indigo-600 
+           shadow-lg 
+           transition duration-300 ease-in-out 
+           hover:bg-indigo-700 hover:shadow-xl 
+           transform hover:scale-105">
+      
+      <!-- Icono de Búsqueda (lucide-react, simulado con SVG para HTML) -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="mr-3 h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 2m0 0l-2-2m2 2V9m6 3a9 9 16 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      
+      Ir a la Galería de Venta Ahora
+    </a>
+
+  </div>
+</section>
+
+ <!-- Divisor transparente que da el 'final' al section. Se adapta al ancho completo. -->
+  <div class="transparent-divider max-w-7xl mx-auto"></div>
+
+<!-- ---------- SECCIÓN CLASES 1 ---------- -->
+<section class="marketing-section">
+
+    
+
+    <div class="container">
+        <div class="classes-grid-wrapper">
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="flex-grow container py-8" id="main-content">
-        <div class="card p-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Eventos Activos</h2>
 
-            <!-- Selector de colegios/álbumes disponibles -->
-            <div class="mb-4 flex flex-col md:flex-row gap-2">
-                <label for="albumSelector" class="block mb-2 font-medium text-gray-700 sr-only">Seleccionar Colegio / Álbum:</label>
-                <select id="albumSelector" class="input-field flex-1">
-                    <option value="">-- Elegí un colegio / álbum --</option>
-                    <!-- Opciones se cargarían dinámicamente -->
-                </select>
-                <button id="searchButton" class="btn-primary flex-shrink-0">Buscar Fotos</button>
-            </div>
+</section>
 
-            <!-- Contenedor de la galería de eventos -->
-            <div id="recentAlbumsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-                <!-- Contenido de ejemplo para visualizar el diseño -->
-                <div class="photo-card p-4 rounded-lg flex flex-col items-center text-center cursor-pointer">
-                    <img src="https://placehold.co/400x300/1e40af/ffffff?text=Evento+A" alt="Evento A" class="w-full h-auto rounded-lg mb-2" />
-                    <h3 class="font-semibold text-gray-800">15K Bs As</h3>
-                    <p class="text-sm text-gray-500">Buenos Aires, Argentina</p>
-                    <button class="btn-primary mt-2 w-full text-sm">Ver Fotos</button>
-                </div>
-                <div class="photo-card p-4 rounded-lg flex flex-col items-center text-center cursor-pointer">
-                    <img src="https://placehold.co/400x300/1e40af/ffffff?text=Evento+B" alt="Evento B" class="w-full h-auto rounded-lg mb-2" />
-                    <h3 class="font-semibold text-gray-800">30K Bs As</h3>
-                    <p class="text-sm text-gray-500">Buenos Aires, Argentina</p>
-                    <button class="btn-primary mt-2 w-full text-sm">Ver Fotos</button>
-                </div>
-                <div class="photo-card p-4 rounded-lg flex flex-col items-center text-center cursor-pointer">
-                    <img src="https://placehold.co/400x300/1e40af/ffffff?text=Evento+C" alt="Evento C" class="w-full h-auto rounded-lg mb-2" />
-                    <h3 class="font-semibold text-gray-800">Media Maratón</h3>
-                    <p class="text-sm text-gray-500">Córdoba, Argentina</p>
-                    <button class="btn-primary mt-2 w-full text-sm">Ver Fotos</button>
-                </div>
-                <div class="photo-card p-4 rounded-lg flex flex-col items-center text-center cursor-pointer">
-                    <img src="https://placehold.co/400x300/1e40af/ffffff?text=Evento+D" alt="Evento D" class="w-full h-auto rounded-lg mb-2" />
-                    <h3 class="font-semibold text-gray-800">Carrera 10K</h3>
-                    <p class="text-sm text-gray-500">Rosario, Argentina</p>
-                    <button class="btn-primary mt-2 w-full text-sm">Ver Fotos</button>
-                </div>
-            </div>
+        </div>
             
-        </div>
-    </main>
+    </div>
+</section>
 
-    <!-- Modales (ocultos por defecto) - Se mantendrían para la funcionalidad de compra -->
-    <!-- (El resto de los modales del carrito y detalles de foto irían aquí) -->
-    
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-6 mt-auto">
-      <div class="container text-center text-sm">
-        <p>&copy; 2025 [Nombre del Fotógrafo]. Todos los derechos reservados.</p>
-        <p class="mt-2">Contacto: info@fotografo.com | Tel: +54 9 11 1234-5678</p>
-        <div class="flex justify-center space-x-4 mt-3">
-          <a href="#" class="hover:text-blue-400 transition-colors">Facebook</a>
-          <a href="#" class="hover:text-blue-400 transition-colors">Instagram</a>
+<!-- ---------- SECCIÓN CLASES 2 ---------- -->
+<section class="marketing-section" style="padding-top:0;">
+    <div class="container">
+        <h2>MORE CLASSES</h2>
+        <h3>Explore different styles</h3>
+
+        <div class="classes-grid-wrapper">
+            <div class="classes-grid">
+                <div class="class-card">
+                    <div class="card-image-container">
+                        <img src="https://picsum.photos/id/1043/400/280" alt="Calle">
+                    </div>
+                    <div class="card-info">
+                        <h4>Street</h4>
+                        <p>JOHN DOE</p>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <div class="card-image-container">
+                        <img src="https://picsum.photos/id/1074/400/280" alt="Retrato">
+                    </div>
+                    <div class="card-info">
+                        <h4>Portrait</h4>
+                        <p>JANE SMITH</p>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <div class="card-image-container">
+                        <img src="https://picsum.photos/id/1080/400/280" alt="Moda">
+                    </div>
+                    <div class="card-info">
+                        <h4>Fashion</h4>
+                        <p>ALICE B.</p>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <div class="card-image-container">
+                        <img src="https://picsum.photos/id/528/400/280" alt="Vida salvaje">
+                    </div>
+                    <div class="card-info">
+                        <h4>Wildlife</h4>
+                        <p>ROBERT C.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-right">&rsaquo;</div>
         </div>
-      </div>
-    </footer>
+    </div>
+</section>
+
+<!-- ---------- SECCIÓN CARRUSEL ---------- -->
+<section class="marketing-section" style="padding-top:0;">
+    <div class="container">
+        <h2>NEXT LEVEL</h2>
+        <h3>Advanced Workshops</h3>
+
+        <div class="carousel-container">
+            <div id="carouselSlides"></div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ---------- MODAL FOTO ---------- -->
+<section id="photo-detail-modal" class="modal hidden">
+    <div class="modal-content">
+        <span onclick="hidePhotoDetailModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
+        <img id="modal-photo-img" style="width:100%;border-radius:10px;margin-bottom:12px;">
+        <h3 id="modal-photo-title"></h3>
+        <p><strong>Precio:</strong> <span id="modal-photo-price"></span></p>
+        <button id="modal-add-to-cart-btn" class="btn-primary">Agregar al Carrito</button>
+    </div>
+</section>
+
+<!-- ---------- MODAL CARRITO ---------- -->
+<section id="cart-modal" class="modal hidden">
+    <div class="modal-content">
+        <span onclick="hideCartModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
+
+        <h2>Tu Carrito</h2>
+        <div id="cart-modal-items-container" style="margin-top:15px;"></div>
+
+        <p style="margin-top:15px;">
+            Total: $<span id="cart-modal-total">0.00</span>
+        </p>
+
+        <button id="cart-modal-checkout-btn" class="btn-primary">Finalizar Compra</button>
+    </div>
+</section>
+
+<!-- ---------- MODAL EMAIL ---------- -->
+<section id="cart-email-modal" class="modal hidden">
+    <div class="modal-content">
+        <span onclick="hideCartEmailModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
+
+        <p>Ingresá tu email para recibir las fotos:</p>
+
+        <input id="cartEmailInput" style="width:100%;padding:8px;margin-top:10px;border-radius:8px;">
+        <button id="cartEmailConfirmBtn" class="btn-primary" style="margin-top:10px;width:100%;">Confirmar Compra</button>
+    </div>
+</section>
+
+<!-- ---------- FOOTER ---------- -->
+<footer class="main-footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div>
+                <h3>GreaterPhoto</h3>
+                <p>Plataforma profesional de fotos y cursos.</p>
+            </div>
+
+            <div>
+                <h5>Explorar</h5>
+                <p>Clases</p>
+                <p>Workshops</p>
+            </div>
+
+            <div>
+                <h5>Ayuda</h5>
+                <p>FAQ</p>
+                <p>Soporte</p>
+            </div>
+
+            <div>
+                <h5>Legal</h5>
+                <p>Políticas</p>
+                <p>Términos</p>
+            </div>
+        </div>
+
+        <p style="text-align:center;margin-top:20px;color:#777;">
+            © 2024 GreaterPhoto — Todos los derechos reservados.
+        </p>
+    </div>
+</footer>
+
+<!-- ---------- JS LÓGICA COMPLETA (primer código) ---------- -->
+<script src="/js/indexprueba.js"></script>
+
+
 </body>
 </html>
