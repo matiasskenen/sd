@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Simulador de Pago - Testing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🧪 Simulador de Pago</h1>
+            <p class="text-gray-600">Herramienta de testing para aprobar órdenes sin pasar por Mercado Pago</p>
+        </div>
+
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        <strong>Solo para desarrollo:</strong> Este endpoint simula el webhook de Mercado Pago. No usar en producción.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Paso 1: Crear orden -->
+            <div class="border rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">📝 Paso 1: Crear una orden de prueba</h2>
+                <p class="text-gray-600 mb-4">Primero, crea una orden comprando fotos en la galería. Luego copia el Order ID de la URL o la consola.</p>
+                <a href="/gallery.html" target="_blank" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded">
+                    Ir a la Galería
+                </a>
+            </div>
+
+            <!-- Paso 2: Simular pago -->
+            <div class="border rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">💳 Paso 2: Simular pago aprobado</h2>
+                
+                <form id="simulateForm" class="space-y-4">
+                    <div>
+                        <label for="orderId" class="block text-sm font-medium text-gray-700 mb-2">
+                            Order ID (UUID de la orden)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="orderId" 
+                            name="orderId"
+                            placeholder="e08a1f76-7f05-4e23-94e5-4fe78bf4ae01"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                        />
+                        <p class="text-sm text-gray-500 mt-1">Pega aquí el UUID completo de tu orden</p>
+                    </div>
+
+                    <button 
+                        type="submit"
+                        class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                        🚀 Simular Pago Aprobado
+                    </button>
+                </form>
+            </div>
+
+            <!-- Resultado -->
+            <div id="result" class="hidden border rounded-lg p-6"></div>
+        </div>
+
+        <!-- Logs -->
+        <div class="mt-8">
+            <h3 class="text-lg font-semibold mb-2 text-gray-800">📋 Logs</h3>
+            <div id="logs" class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-64 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('simulateForm');
+        const result = document.getElementById('result');
+        const logs = document.getElementById('logs');
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: 'text-green-400',
+                error: 'text-red-400',
+                success: 'text-yellow-400'
+            };
+            logs.innerHTML += `<div class="${colors[type]}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const orderId = document.getElementById('orderId').value.trim();
+            
+            if (!orderId) {
+                alert('Por favor ingresa un Order ID');
+                return;
+            }
+
+            result.classList.add('hidden');
+            logs.innerHTML = '';
+            addLog('🔄 Iniciando simulación de pago...', 'info');
+            addLog(`📦 Order ID: ${orderId}`, 'info');
+
+            try {
+                const response = await fetch('/simulate-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ orderId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog('✅ Pago simulado exitosamente!', 'success');
+                    addLog(`📧 Email: ${data.customer_email}`, 'info');
+                    addLog(`📸 Fotos: ${data.photos}`, 'info');
+                    addLog(`⏰ Expira: ${new Date(data.expires_at).toLocaleString()}`, 'info');
+                    
+                    result.innerHTML = `
+                        <div class="bg-green-50 border-l-4 border-green-400 p-4">
+                            <div class="flex items-center mb-4">
+                                <svg class="h-6 w-6 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <h3 class="text-lg font-semibold text-green-800">¡Pago Simulado Exitosamente!</h3>
+                            </div>
+                            <div class="space-y-2 text-sm text-green-700 mb-4">
+                                <p><strong>Order ID:</strong> ${data.orderId}</p>
+                                <p><strong>Email:</strong> ${data.customer_email}</p>
+                                <p><strong>Fotos:</strong> ${data.photos}</p>
+                                <p><strong>Expira:</strong> ${new Date(data.expires_at).toLocaleString()}</p>
+                            </div>
+                            <a 
+                                href="${data.success_url}" 
+                                target="_blank"
+                                class="inline-block bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                            >
+                                🎉 Ir a Página de Éxito
+                            </a>
+                        </div>
+                    `;
+                    result.classList.remove('hidden');
+                } else {
+                    addLog(`❌ Error: ${data.error || 'Error desconocido'}`, 'error');
+                    if (data.details) {
+                        addLog(`📝 Detalles: ${data.details}`, 'error');
+                    }
+                    
+                    result.innerHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <h3 class="text-lg font-semibold text-red-800 mb-2">Error en la simulación</h3>
+                            <p class="text-sm text-red-700">${data.error || 'Error desconocido'}</p>
+                            ${data.details ? `<p class="text-xs text-red-600 mt-2">${data.details}</p>` : ''}
+                        </div>
+                    `;
+                    result.classList.remove('hidden');
+                }
+            } catch (error) {
+                addLog(`❌ Error de conexión: ${error.message}`, 'error');
+                result.innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error de Conexión</h3>
+                        <p class="text-sm text-red-700">${error.message}</p>
+                    </div>
+                `;
+                result.classList.remove('hidden');
+            }
+        });
+
+        // Log inicial
+        addLog('🧪 Simulador de pago listo', 'success');
+        addLog('ℹ️ Ingresa un Order ID para comenzar', 'info');
+    </script>
+</body>
+</html>
