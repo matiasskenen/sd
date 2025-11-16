@@ -18,6 +18,9 @@ const helmet = require("helmet"); // Security headers
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy - CRÍTICO para Render/Heroku/producción detrás de reverse proxy
+app.set('trust proxy', 1);
+
 // --- Sistema de Logging y Métricas ---
 const LOG_LEVELS = {
     DEBUG: 0,
@@ -755,8 +758,13 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         console.log(`   - Tiempo request: ${new Date(requestTime).toISOString()}`);
         console.log(`   - Diferencia: ${(timeDiff / 1000).toFixed(2)}s`);
 
-        // En sandbox, Mercado Pago puede reenviar webhooks antiguos, permitimos ventana más amplia
-        const MAX_TIME_DIFF = process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000; // 5 min prod, 24h test
+        // En sandbox/desarrollo, Mercado Pago puede reenviar webhooks antiguos
+        // Permitimos ventana amplia por defecto (24h) a menos que NODE_ENV sea explícitamente 'production'
+        const isProduction = process.env.NODE_ENV === 'production';
+        const MAX_TIME_DIFF = isProduction ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000; // 5 min prod, 24h dev/sandbox
+        
+        console.log(`   - Modo: ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO/SANDBOX'} (ventana: ${MAX_TIME_DIFF / 1000}s)`);
+
         
         if (timeDiff > MAX_TIME_DIFF) {
             console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${MAX_TIME_DIFF / 1000}s)`);
