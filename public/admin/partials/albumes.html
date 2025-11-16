@@ -24,12 +24,13 @@
       <input type="text" id="newAlbumNameInput" class="input-field" placeholder="Ej: Acto Fin de Año">
 
       <label for="newAlbumDateInput" class="block text-gray-700 text-sm font-medium mt-3 mb-2">Fecha del Evento:</label>
-      <input type="text" id="newAlbumDescriptionInput" class="input-field" placeholder="Opcional">
-
       <input type="date" id="newAlbumDateInput" class="input-field">
 
       <label for="newAlbumDescriptionInput" class="block text-gray-700 text-sm font-medium mt-3 mb-2">Descripción / Colegio:</label>
       <input type="text" id="newAlbumDescriptionInput" class="input-field" placeholder="Opcional">
+
+      <label for="newAlbumPriceInput" class="block text-gray-700 text-sm font-medium mt-3 mb-2">Precio por Foto ($):</label>
+      <input type="number" id="newAlbumPriceInput" class="input-field" placeholder="15.00" step="0.01" min="0" value="15.00">
 
       <div class="flex gap-2 mt-4">
         <button type="button" id="confirmCreateAlbumButton" class="btn-primary flex-grow">Confirmar Creación</button>
@@ -131,6 +132,9 @@
 
     <label class="block text-sm font-medium text-gray-700">Descripción / Colegio</label>
     <input type="text" id="editAlbumDescription" class="input-field mb-3" placeholder="Opcional">
+
+    <label class="block text-sm font-medium text-gray-700">Precio por Foto ($)</label>
+    <input type="number" id="editAlbumPrice" class="input-field mb-3" placeholder="15.00" step="0.01" min="0">
 
     <div class="flex justify-end gap-2">
       <button id="cancelEditAlbum" class="btn-secondary">Cancelar</button>

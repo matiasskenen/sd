@@ -174,21 +174,31 @@ app.get("/albums", async (req, res) => {
 
 // Ruta para crear un nuevo álbum
 app.post("/albums", async (req, res) => {
-    const { name, event_date } = req.body; // Asegúrate de recibir event_date del frontend // En un sistema real, el photographer_user_id vendría de la sesión del usuario logueado
+    const { name, event_date, description, price_per_photo } = req.body;
     const photographer_user_id = "65805569-2e32-46a0-97c5-c52e31e02866"; // <-- ¡IMPORTANTE! Usar el ID real del fotógrafo logueado
 
     if (!name) {
         return res.status(400).json({ message: "El nombre del álbum es requerido." });
-    } // Validar event_date si es requerido por la BD
+    }
     if (!event_date) {
         return res.status(400).json({ message: "La fecha del evento es requerida para el álbum." });
-    } // *** LOG PARA DEPURACIÓN: Muestra los datos que se intentan insertar ***
+    }
 
-    console.log("Intentando crear álbum con datos:", { name, event_date, photographer_user_id }); // *** FIN LOG ***
+    // Precio por defecto si no se especifica
+    const finalPrice = price_per_photo ? Number(price_per_photo) : 15.0;
+
+    console.log("Intentando crear álbum con datos:", { name, event_date, description, price_per_photo: finalPrice, photographer_user_id });
+    
     try {
         const { data: album, error } = await supabaseAdmin
             .from("albums")
-            .insert({ name, event_date, photographer_user_id }) // Incluye event_date aquí
+            .insert({ 
+                name, 
+                event_date, 
+                description: description || null,
+                price_per_photo: finalPrice,
+                photographer_user_id 
+            })
             .select()
             .single();
 
@@ -227,6 +237,8 @@ app.get("/albums/:albumId/photos", async (req, res) => {
             ...photo,
             public_watermarked_url: `${supabaseUrl}/storage/v1/object/public/watermarked-photos/${photo.watermarked_file_path}`,
         }));
+
+        console.log(`✓ Álbum ${albumId}: Devolviendo ${photos.length} fotos con precios:`, photos.map(p => `$${p.price}`).join(', '));
 
         res.status(200).json({
             message: `Fotos obtenidas exitosamente para el álbum ${albumId}.`,
@@ -338,32 +350,45 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
         return res.status(400).json({ message: "ID de álbum no válido." });
     }
 
+    let albumPrice; // Declarar fuera del try para que sea accesible en todo el scope
+
     try {
-        const { data: album, error: albumError } = await supabaseAdmin.from("albums").select("id, photographer_user_id").eq("id", albumId).eq("photographer_user_id", photographerId).single();
+        // Obtener álbum Y su precio
+        const { data: album, error: albumError } = await supabaseAdmin
+            .from("albums")
+            .select("id, photographer_user_id, price_per_photo")
+            .eq("id", albumId)
+            .eq("photographer_user_id", photographerId)
+            .single();
 
         if (albumError || !album) {
             console.error("Error al verificar álbum:", albumError ? albumError.message : "Álbum no encontrado.");
             return res.status(404).json({ message: "Álbum no encontrado o no autorizado para este fotógrafo." });
         }
+
+        // Precio del álbum (con fallback a 15.0)
+        albumPrice = album.price_per_photo || 15.0;
+        console.log(`Usando precio del álbum: $${albumPrice}`);
+
     } catch (dbError) {
         console.error("Error de base de datos al verificar álbum:", dbError);
         return res.status(500).json({ message: "Error interno del servidor al verificar el álbum." });
     }
 
     if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ message: "No se subieron archivos." });
-    }
+            return res.status(400).json({ message: "No se subieron archivos." });
+        }
 
-    const watermarkedPhotosPath = path.resolve(__dirname, "assets", "watermark.png");
-    console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
-    if (!fs.existsSync(watermarkedPhotosPath)) {
-        console.error(`Error: Archivo de marca de agua no encontrado en ${watermarkedPhotosPath}`);
-        return res.status(500).json({ message: "Error interno: Archivo de marca de agua no encontrado." });
-    }
+        const watermarkedPhotosPath = path.resolve(__dirname, "assets", "watermark.png");
+        console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
+        if (!fs.existsSync(watermarkedPhotosPath)) {
+            console.error(`Error: Archivo de marca de agua no encontrado en ${watermarkedPhotosPath}`);
+            return res.status(500).json({ message: "Error interno: Archivo de marca de agua no encontrado." });
+        }
 
-    const results = [];
+        const results = [];
 
-    for (const file of req.files) {
+        for (const file of req.files) {
         try {
             const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${path.extname(file.originalname)}`;
             const originalFilePath = `albums/${albumId}/original/${uniqueFileName}`;
@@ -417,7 +442,7 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
                         original_file_path: originalFilePath,
                         watermarked_file_path: watermarkedFilePath,
                         student_code: null,
-                        price: 15.0,
+                        price: albumPrice,
                         metadata: {
                             originalName: file.originalname,
                             mimetype: file.mimetype,
@@ -1164,6 +1189,8 @@ app.get("/albums-with-photos", async (req, res) => {
         id,
         name,
         event_date,
+        description,
+        price_per_photo,
         photos (
           id,
           watermarked_file_path
@@ -1219,16 +1246,35 @@ app.delete("/photos/:id", async (req, res) => {
 // Actualizar álbum
 app.put("/albums/:id", async (req, res) => {
     const { id } = req.params;
-    const { name, event_date, description } = req.body;
+    const { name, event_date, description, price_per_photo } = req.body;
 
     try {
+        const updateData = {
+            name,
+            event_date,
+            description,
+        };
+
+        // Solo actualizar precio si se proporciona
+        if (price_per_photo !== undefined) {
+            updateData.price_per_photo = Number(price_per_photo);
+            
+            // Actualizar el precio de todas las fotos existentes en este álbum
+            const { error: photosError } = await supabaseAdmin
+                .from("photos")
+                .update({ price: Number(price_per_photo) })
+                .eq("album_id", id);
+            
+            if (photosError) {
+                console.error("Error al actualizar precios de fotos:", photosError);
+            } else {
+                console.log(`✓ Precios actualizados para todas las fotos del álbum ${id}: $${price_per_photo}`);
+            }
+        }
+
         const { data, error } = await supabaseAdmin
             .from("albums")
-            .update({
-                name,
-                event_date,
-                description,
-            })
+            .update(updateData)
             .eq("id", id)
             .select()
             .single();

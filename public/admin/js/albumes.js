@@ -25,6 +25,7 @@ export function init() {
   const clearAlbumSelectionButton = document.getElementById('clearAlbumSelection');
   const newAlbumDateInput = document.getElementById('newAlbumDateInput');
   const newAlbumDescriptionInput = document.getElementById('newAlbumDescriptionInput');
+  const newAlbumPriceInput = document.getElementById('newAlbumPriceInput');
 
   // Toggle Albums Section
   const toggleAlbumsSection = document.getElementById('toggleAlbumsSection');
@@ -89,6 +90,7 @@ const createAlbum = async () => {
   const newAlbumName = newAlbumNameInput.value.trim();
   const newAlbumDate = newAlbumDateInput?.value || new Date().toISOString().split('T')[0];
   const newAlbumDescription = newAlbumDescriptionInput?.value.trim();
+  const newAlbumPrice = newAlbumPriceInput?.value || 15.0;
 
   if (!newAlbumName) {
     showMessage('Por favor, ingresa un nombre para el nuevo álbum.', 'error');
@@ -105,7 +107,8 @@ const createAlbum = async () => {
       body: JSON.stringify({
         name: newAlbumName,
         event_date: newAlbumDate,
-        description: newAlbumDescription
+        description: newAlbumDescription,
+        price_per_photo: Number(newAlbumPrice)
       })
     });
 
@@ -115,6 +118,7 @@ const createAlbum = async () => {
       newAlbumNameInput.value = '';
       newAlbumDateInput.value = '';
       newAlbumDescriptionInput.value = '';
+      newAlbumPriceInput.value = '15.00';
       await fetchAlbums();
       albumSelect.value = data.album.id;
       // ✅ Volver al modo selección y MOSTRAR sección de fotos
@@ -388,13 +392,15 @@ const renderAlbums = (data) => {
               <h3 class="text-lg font-bold text-gray-800">${album.name}</h3>
               <p class="text-sm text-gray-500">Evento: ${album.event_date}</p>
               ${album.description ? `<p class="text-xs text-gray-400">${album.description}</p>` : ""}
+              <p class="text-sm font-semibold text-green-600 mt-1">💵 Precio: $${album.price_per_photo || 15.0} por foto</p>
             </div>
             <div class="flex gap-2">
               <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded edit-album" 
                 data-id="${album.id}" 
                 data-name="${album.name}" 
                 data-date="${album.event_date}" 
-                data-description="${album.description || ''}">
+                data-description="${album.description || ''}"
+                data-price="${album.price_per_photo || 15.0}">
                 Editar
               </button>
               <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded delete-album" data-id="${album.id}">
@@ -579,6 +585,7 @@ const editAlbumModal = document.getElementById("editAlbumModal");
 const editAlbumName = document.getElementById("editAlbumName");
 const editAlbumDate = document.getElementById("editAlbumDate");
 const editAlbumDescription = document.getElementById("editAlbumDescription");
+const editAlbumPrice = document.getElementById("editAlbumPrice");
 const saveEditAlbum = document.getElementById("saveEditAlbum");
 const cancelEditAlbum = document.getElementById("cancelEditAlbum");
 
@@ -587,6 +594,7 @@ document.addEventListener("click", (e) => {
     editAlbumName.value = e.target.dataset.name;
     editAlbumDate.value = e.target.dataset.date;
     editAlbumDescription.value = e.target.dataset.description;
+    editAlbumPrice.value = e.target.dataset.price || 15.0;
     saveEditAlbum.dataset.id = e.target.dataset.id;
     editAlbumModal.classList.remove("hidden");
   }
@@ -601,6 +609,7 @@ saveEditAlbum.addEventListener("click", async () => {
   const name = editAlbumName.value.trim();
   const date = editAlbumDate.value;
   const description = editAlbumDescription.value.trim();
+  const price = editAlbumPrice.value;
 
   if (!name) {
     alert("El nombre no puede estar vacío");
@@ -610,7 +619,12 @@ saveEditAlbum.addEventListener("click", async () => {
   const res = await fetch(`${BACKEND_URL}/albums/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, event_date: date, description })
+    body: JSON.stringify({ 
+      name, 
+      event_date: date, 
+      description,
+      price_per_photo: Number(price)
+    })
   });
 
   if (res.ok) {
