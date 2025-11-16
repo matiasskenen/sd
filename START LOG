@@ -1,2 +1,25 @@
+# INICIAR SERVIDOR
 node server.js
-http://localhost:3000/login.html
+# o
+npm start
+
+# URLS PRINCIPALES
+http://localhost:3000                    # Página principal
+http://localhost:3000/admin/login.html   # Login admin
+http://localhost:3000/admin/admin_dashboard.html  # Dashboard
+http://localhost:3000/admin/monitoring.html       # Panel de monitoreo 🆕
+
+# SCRIPTS ÚTILES
+npm run backup                           # Crear backup de base de datos 🆕
+
+# MONITOREO
+- Ver logs en tiempo real en /admin/monitoring.html
+- Métricas del servidor y performance
+- Tests de funcionalidad
+- Health checks
+
+# NOTAS
+- El panel de monitoreo está completamente funcional
+- Los logs se sanitizan automáticamente (sin passwords/tokens)
+- Buffer de 1000 logs en memoria
+- Backups automáticos con npm run backup

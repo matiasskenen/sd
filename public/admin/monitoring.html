@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Monitoreo y Debugging</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="/admin/css/monitoring.css" />
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-gray-800 border-b border-gray-700 py-4 sticky top-0 z-50 shadow-lg">
+    <div class="container mx-auto px-6 flex justify-between items-center">
+      <div class="flex items-center space-x-4">
+        <i class="fas fa-chart-line text-indigo-400 text-2xl"></i>
+        <h1 class="text-2xl font-bold text-white">Panel de Monitoreo</h1>
+        <div id="healthBadge" class="px-3 py-1 rounded-full text-xs font-semibold">
+          <i class="fas fa-circle"></i> <span>Checking...</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span id="uptimeDisplay" class="text-sm text-gray-400">Uptime: --</span>
+        <a href="/admin/admin_dashboard.html" class="text-gray-400 hover:text-white transition">
+          <i class="fas fa-arrow-left mr-2"></i>Volver al Panel
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="bg-gray-800 border-b border-gray-700">
+    <div class="container mx-auto px-6">
+      <nav class="flex space-x-1">
+        <button data-tab="logs" class="tab-btn active">
+          <i class="fas fa-terminal mr-2"></i>Logs
+        </button>
+        <button data-tab="metrics" class="tab-btn">
+          <i class="fas fa-chart-bar mr-2"></i>Métricas
+        </button>
+        <button data-tab="testing" class="tab-btn">
+          <i class="fas fa-flask mr-2"></i>Testing
+        </button>
+        <button data-tab="config" class="tab-btn">
+          <i class="fas fa-cog mr-2"></i>Configuración
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- CONTENIDO -->
+  <main class="container mx-auto px-6 py-8">
+
+    <!-- TAB: LOGS -->
+    <div id="tab-logs" class="tab-content active">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Controles laterales -->
+        <div class="lg:col-span-1 space-y-4">
+          
+          <!-- Filtros -->
+          <div class="card">
+            <h3 class="text-lg font-semibold mb-4 flex items-center">
+              <i class="fas fa-filter mr-2 text-indigo-400"></i>Filtros
+            </h3>
+            
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-2">Nivel</label>
+                <select id="logLevelFilter" class="input-field">
+                  <option value="ALL">Todos</option>
+                  <option value="DEBUG">Debug</option>
+                  <option value="INFO">Info</option>
+                  <option value="WARN">Warning</option>
+                  <option value="ERROR">Error</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium mb-2">Límite</label>
+                <select id="logLimit" class="input-field">
+                  <option value="50">50 logs</option>
+                  <option value="100" selected>100 logs</option>
+                  <option value="500">500 logs</option>
+                  <option value="1000">1000 logs</option>
+                </select>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <input type="checkbox" id="autoRefresh" checked class="w-4 h-4">
+                <label for="autoRefresh" class="text-sm">Auto-refresh (5s)</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="card">
+            <h3 class="text-lg font-semibold mb-4 flex items-center">
+              <i class="fas fa-bolt mr-2 text-yellow-400"></i>Acciones
+            </h3>
+            
+            <div class="space-y-2">
+              <button id="refreshLogsBtn" class="btn-secondary w-full">
+                <i class="fas fa-sync-alt mr-2"></i>Refrescar Ahora
+              </button>
+              <button id="clearLogsBtn" class="btn-danger w-full">
+                <i class="fas fa-trash mr-2"></i>Limpiar Logs
+              </button>
+              <button id="downloadLogsBtn" class="btn-secondary w-full">
+                <i class="fas fa-download mr-2"></i>Descargar JSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Estadísticas -->
+          <div class="card">
+            <h3 class="text-lg font-semibold mb-4 flex items-center">
+              <i class="fas fa-chart-pie mr-2 text-green-400"></i>Estadísticas
+            </h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Total:</span>
+                <span id="logCountTotal" class="font-semibold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Errores:</span>
+                <span id="logCountError" class="font-semibold text-red-400">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Warnings:</span>
+                <span id="logCountWarn" class="font-semibold text-yellow-400">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Info:</span>
+                <span id="logCountInfo" class="font-semibold text-blue-400">0</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Consola -->
+        <div class="lg:col-span-3">
+          <div class="card h-full">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold flex items-center">
+                <i class="fas fa-terminal mr-2 text-green-400"></i>Consola de Logs
+              </h3>
+              <span class="text-xs text-gray-500" id="lastUpdate">Última actualización: --</span>
+            </div>
+            
+            <div id="logsConsole" class="console-output">
+              <div class="text-gray-500 text-center py-8">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Cargando logs...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: MÉTRICAS -->
+    <div id="tab-metrics" class="tab-content">
+      
+      <!-- Tarjetas de resumen -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        
+        <div class="card-metric">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="text-sm text-gray-400">Total Requests</p>
+              <p id="metricTotalRequests" class="text-3xl font-bold text-white">0</p>
+            </div>
+            <div class="metric-icon bg-blue-500">
+              <i class="fas fa-globe"></i>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">Todas las peticiones</p>
+        </div>
+
+        <div class="card-metric">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="text-sm text-gray-400">Errores</p>
+              <p id="metricTotalErrors" class="text-3xl font-bold text-red-400">0</p>
+            </div>
+            <div class="metric-icon bg-red-500">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">Errores totales</p>
+        </div>
+
+        <div class="card-metric">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="text-sm text-gray-400">Avg Response</p>
+              <p id="metricAvgResponse" class="text-3xl font-bold text-green-400">0ms</p>
+            </div>
+            <div class="metric-icon bg-green-500">
+              <i class="fas fa-tachometer-alt"></i>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">Tiempo promedio</p>
+        </div>
+
+        <div class="card-metric">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="text-sm text-gray-400">Fotos Subidas</p>
+              <p id="metricPhotosUploaded" class="text-3xl font-bold text-purple-400">0</p>
+            </div>
+            <div class="metric-icon bg-purple-500">
+              <i class="fas fa-camera"></i>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">Total de fotos</p>
+        </div>
+
+      </div>
+
+      <!-- Gráficos y detalles -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Requests por endpoint -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-route mr-2 text-blue-400"></i>Requests por Endpoint
+          </h3>
+          <div id="endpointsList" class="space-y-2 max-h-96 overflow-y-auto">
+            <p class="text-gray-500 text-center py-4">Cargando...</p>
+          </div>
+        </div>
+
+        <!-- Status codes -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-list-ol mr-2 text-green-400"></i>Status Codes
+          </h3>
+          <div id="statusCodesList" class="space-y-2">
+            <p class="text-gray-500 text-center py-4">Cargando...</p>
+          </div>
+        </div>
+
+        <!-- Performance -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-stopwatch mr-2 text-yellow-400"></i>Performance
+          </h3>
+          <div id="performanceDetails" class="space-y-3">
+            <p class="text-gray-500 text-center py-4">Cargando...</p>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-server mr-2 text-purple-400"></i>System Info
+          </h3>
+          <div id="systemInfo" class="space-y-2 text-sm">
+            <p class="text-gray-500 text-center py-4">Cargando...</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-6 text-right">
+        <button id="refreshMetricsBtn" class="btn-primary">
+          <i class="fas fa-sync-alt mr-2"></i>Refrescar Métricas
+        </button>
+        <button id="resetMetricsBtn" class="btn-danger ml-2">
+          <i class="fas fa-undo mr-2"></i>Resetear Métricas
+        </button>
+      </div>
+
+    </div>
+
+    <!-- TAB: TESTING -->
+    <div id="tab-testing" class="tab-content">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Tests de funcionalidad -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-vial mr-2 text-blue-400"></i>Tests de Funcionalidad
+          </h3>
+          
+          <div class="space-y-4">
+            
+            <div class="test-item">
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">Crear Álbum de Prueba</h4>
+                <button class="btn-test" data-test="create-album">
+                  <i class="fas fa-play mr-1"></i>Ejecutar
+                </button>
+              </div>
+              <p class="text-sm text-gray-400">Crea un álbum de prueba con datos aleatorios</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+            <div class="test-item">
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">Health Check</h4>
+                <button class="btn-test" data-test="health-check">
+                  <i class="fas fa-play mr-1"></i>Ejecutar
+                </button>
+              </div>
+              <p class="text-sm text-gray-400">Verifica el estado de database y storage</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+            <div class="test-item">
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">Limpiar Datos de Prueba</h4>
+                <button class="btn-test btn-danger" data-test="cleanup">
+                  <i class="fas fa-trash mr-1"></i>Ejecutar
+                </button>
+              </div>
+              <p class="text-sm text-gray-400">Elimina todos los álbumes que contengan "Test"</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tests de performance y errores -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-tachometer-alt mr-2 text-yellow-400"></i>Tests de Performance y Errores
+          </h3>
+          
+          <div class="space-y-4">
+            
+            <div class="test-item">
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">Simular Error 500</h4>
+                <button class="btn-test btn-danger" data-test="error-500">
+                  <i class="fas fa-play mr-1"></i>Ejecutar
+                </button>
+              </div>
+              <p class="text-sm text-gray-400">Simula un error interno del servidor</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+            <div class="test-item">
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">Simular Error 404</h4>
+                <button class="btn-test btn-danger" data-test="error-404">
+                  <i class="fas fa-play mr-1"></i>Ejecutar
+                </button>
+              </div>
+              <p class="text-sm text-gray-400">Simula un recurso no encontrado</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+            <div class="test-item">
+              <div class="mb-2">
+                <h4 class="font-medium mb-2">Test de Respuesta Lenta</h4>
+                <div class="flex items-center space-x-2">
+                  <input type="number" id="slowDelay" value="3000" min="1000" max="10000" step="1000" class="input-field flex-1">
+                  <button class="btn-test" data-test="slow-endpoint">
+                    <i class="fas fa-play mr-1"></i>Ejecutar
+                  </button>
+                </div>
+              </div>
+              <p class="text-sm text-gray-400">Simula una respuesta con delay (ms)</p>
+              <div class="test-result mt-2 hidden"></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-6">
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-clipboard-list mr-2 text-green-400"></i>Resultados de Tests
+          </h3>
+          <div id="testResults" class="console-output">
+            <p class="text-gray-500 text-center py-4">Los resultados aparecerán aquí...</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB: CONFIGURACIÓN -->
+    <div id="tab-config" class="tab-content">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Configuración de Logs -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-sliders-h mr-2 text-indigo-400"></i>Configuración de Logs
+          </h3>
+          
+          <div class="space-y-4">
+            
+            <div>
+              <label class="block text-sm font-medium mb-2">Nivel de Log</label>
+              <select id="configLogLevel" class="input-field">
+                <option value="DEBUG">DEBUG - Todos los mensajes</option>
+                <option value="INFO" selected>INFO - Información general</option>
+                <option value="WARN">WARN - Solo advertencias y errores</option>
+                <option value="ERROR">ERROR - Solo errores</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">Controla qué logs se guardan en el buffer</p>
+            </div>
+
+            <div class="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+              <div>
+                <p class="font-medium">Logs en Consola del Servidor</p>
+                <p class="text-sm text-gray-400">Habilita/deshabilita console.log en el servidor</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="configConsoleLogging" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <button id="applyConfigBtn" class="btn-primary w-full">
+              <i class="fas fa-check mr-2"></i>Aplicar Configuración
+            </button>
+
+          </div>
+        </div>
+
+        <!-- Estado actual -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-info-circle mr-2 text-blue-400"></i>Estado Actual
+          </h3>
+          
+          <div id="currentConfig" class="space-y-3">
+            <div class="flex justify-between p-3 bg-gray-800 rounded">
+              <span class="text-gray-400">Nivel de Log:</span>
+              <span class="font-semibold">INFO</span>
+            </div>
+            <div class="flex justify-between p-3 bg-gray-800 rounded">
+              <span class="text-gray-400">Console Logging:</span>
+              <span class="font-semibold text-green-400">Habilitado</span>
+            </div>
+            <div class="flex justify-between p-3 bg-gray-800 rounded">
+              <span class="text-gray-400">Logs en Buffer:</span>
+              <span class="font-semibold">0</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script src="/admin/js/monitoring.js"></script>
+</body>
+</html>

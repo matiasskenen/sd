@@ -1,7 +1,7 @@
 <div class="card">
   <h1 class="text-3xl font-extrabold text-gray-800 mb-8 text-center">Resumen del Panel</h1>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <div class="bg-white p-6 rounded-lg shadow-md">
       <h2 class="text-lg font-bold text-gray-700 mb-2">Álbumes</h2>
       <p id="totalAlbums" class="text-3xl font-extrabold text-indigo-600">0</p>
@@ -13,6 +13,21 @@
     <div class="bg-white p-6 rounded-lg shadow-md">
       <h2 class="text-lg font-bold text-gray-700 mb-2">Pedidos</h2>
       <p id="totalOrders" class="text-3xl font-extrabold text-indigo-600">0</p>
+    </div>
+  </div>
+
+  <!-- Acceso rápido al panel de monitoreo -->
+  <div class="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 rounded-lg shadow-md text-white">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-bold mb-2">
+          <i class="fas fa-chart-line mr-2"></i>Panel de Monitoreo y Debugging
+        </h2>
+        <p class="text-sm opacity-90">Visualiza logs, métricas del servidor y ejecuta tests de funcionalidad</p>
+      </div>
+      <a href="/admin/monitoring.html" class="bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+        Abrir Panel <i class="fas fa-arrow-right ml-2"></i>
+      </a>
     </div>
   </div>
 </div>

@@ -12,9 +12,126 @@ const path = require("path"); // Para manejar rutas de archivos
 const fs = require("fs"); // Para verificar si la marca de agua existe (opcional, pero buena práctica)
 const mercadopago = require("mercadopago"); // Importa el módulo completo de mercadopago
 const cors = require("cors"); // Importa el módulo CORS
+const rateLimit = require("express-rate-limit"); // Rate limiting
+const helmet = require("helmet"); // Security headers
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- Sistema de Logging y Métricas ---
+const LOG_LEVELS = {
+    DEBUG: 0,
+    INFO: 1,
+    WARN: 2,
+    ERROR: 3
+};
+
+let currentLogLevel = process.env.LOG_LEVEL || 'INFO';
+let consoleLoggingEnabled = true;
+
+// Buffer circular para logs (últimos 1000)
+const MAX_LOGS = 1000;
+const logBuffer = [];
+
+// Métricas del servidor
+const metrics = {
+    startTime: Date.now(),
+    requests: {
+        total: 0,
+        byEndpoint: {},
+        byStatusCode: {}
+    },
+    errors: {
+        total: 0,
+        byType: {}
+    },
+    photos: {
+        uploaded: 0,
+        downloaded: 0
+    },
+    albums: {
+        created: 0
+    },
+    orders: {
+        created: 0,
+        paid: 0
+    },
+    responseTimes: []
+};
+
+// Logger centralizado
+const logger = {
+    _log: (level, message, metadata = {}) => {
+        if (LOG_LEVELS[level] < LOG_LEVELS[currentLogLevel.toUpperCase()]) {
+            return; // No loggear si el nivel es menor al configurado
+        }
+
+        const timestamp = new Date().toISOString();
+        const logEntry = {
+            timestamp,
+            level,
+            message,
+            metadata: sanitizeMetadata(metadata)
+        };
+
+        // Agregar al buffer (circular)
+        logBuffer.push(logEntry);
+        if (logBuffer.length > MAX_LOGS) {
+            logBuffer.shift();
+        }
+
+        // Log a consola si está habilitado
+        if (consoleLoggingEnabled) {
+            const emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌' }[level] || '';
+            console.log(`${emoji} [${timestamp}] [${level}] ${message}`, metadata && Object.keys(metadata).length > 0 ? metadata : '');
+        }
+    },
+    debug: (msg, meta) => logger._log('DEBUG', msg, meta),
+    info: (msg, meta) => logger._log('INFO', msg, meta),
+    warn: (msg, meta) => logger._log('WARN', msg, meta),
+    error: (msg, meta) => logger._log('ERROR', msg, meta)
+};
+
+// Sanitizar metadata para evitar loggear tokens/passwords
+function sanitizeMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'object') return metadata;
+    
+    const sanitized = { ...metadata };
+    const sensitiveKeys = ['password', 'token', 'authorization', 'secret', 'key', 'access_token'];
+    
+    for (const key in sanitized) {
+        if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
+            sanitized[key] = '***REDACTED***';
+        }
+    }
+    
+    return sanitized;
+}
+
+// Middleware para tracking de métricas
+app.use((req, res, next) => {
+    const startTime = Date.now();
+    
+    metrics.requests.total++;
+    metrics.requests.byEndpoint[req.path] = (metrics.requests.byEndpoint[req.path] || 0) + 1;
+    
+    res.on('finish', () => {
+        const duration = Date.now() - startTime;
+        metrics.responseTimes.push(duration);
+        if (metrics.responseTimes.length > 100) {
+            metrics.responseTimes.shift();
+        }
+        
+        metrics.requests.byStatusCode[res.statusCode] = (metrics.requests.byStatusCode[res.statusCode] || 0) + 1;
+        
+        logger.debug(`${req.method} ${req.path}`, {
+            statusCode: res.statusCode,
+            duration: `${duration}ms`
+        });
+    });
+    
+    next();
+});
 
 // --- Configuración de Supabase ---
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -99,9 +216,102 @@ async function tryGetPaymentWithRetry(paymentId, retries = 3) {
 }
 
 // --- Middlewares ---
+// SEGURIDAD: Helmet para headers HTTP seguros
+app.use(helmet({
+    contentSecurityPolicy: false, // Deshabilitado porque usamos CDN de Tailwind
+    crossOriginEmbedderPolicy: false, // Necesario para imágenes de Supabase
+    hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000 } : false
+}));
+
+// SEGURIDAD: CORS configurado con whitelist
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:5173']; // Valores por defecto para desarrollo
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Permitir requests sin origin (como mobile apps, Postman, curl)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            logger.warn('CORS bloqueado', { origin });
+            callback(new Error('No permitido por CORS'));
+        }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// SEGURIDAD: Rate limiting general
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 100, // Límite de 100 requests por ventana
+    message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        logger.warn('Rate limit excedido', { 
+            ip: req.ip, 
+            path: req.path 
+        });
+        res.status(429).json({ 
+            error: 'Demasiadas peticiones, por favor intenta más tarde.',
+            retryAfter: '15 minutos'
+        });
+    }
+});
+
+// SEGURIDAD: Rate limiting estricto para login
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 5, // Solo 5 intentos de login
+    message: 'Demasiados intentos de login, por favor intenta más tarde.',
+    skipSuccessfulRequests: false, // Contar todos los intentos
+    handler: (req, res) => {
+        logger.warn('Rate limit de auth excedido', { 
+            ip: req.ip,
+            email: req.body?.email 
+        });
+        res.status(429).json({ 
+            error: 'Demasiados intentos de login. Por seguridad, espera 15 minutos.',
+            retryAfter: '15 minutos'
+        });
+    }
+});
+
+// SEGURIDAD: Rate limiting para creación de recursos
+const createLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 20, // 20 creaciones por hora
+    message: 'Límite de creación alcanzado.',
+    handler: (req, res) => {
+        logger.warn('Rate limit de creación excedido', { 
+            ip: req.ip,
+            path: req.path 
+        });
+        res.status(429).json({ 
+            error: 'Has alcanzado el límite de creaciones por hora.',
+            retryAfter: '1 hora'
+        });
+    }
+});
+
+// SEGURIDAD: Rate limiting para webhooks (más permisivo)
+const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 30, // 30 requests por minuto
+    message: 'Webhook rate limit excedido'
+});
+
+// Aplicar rate limiting general a todas las rutas
+app.use(generalLimiter);
+
 app.use(express.json()); // Para parsear cuerpos de petición JSON
 app.use(express.urlencoded({ extended: true })); // Para parsear datos de formularios URL-encoded
-app.use(cors()); // Habilita CORS para todas las rutas
 
 // Sirve los archivos estáticos desde la carpeta 'public'
 app.use(express.static("public"));
@@ -172,8 +382,8 @@ app.get("/albums", async (req, res) => {
     }
 });
 
-// Ruta para crear un nuevo álbum
-app.post("/albums", async (req, res) => {
+// Ruta para crear un nuevo álbum (CON RATE LIMITING)
+app.post("/albums", createLimiter, async (req, res) => {
     const { name, event_date, description, price_per_photo } = req.body;
     const photographer_user_id = "65805569-2e32-46a0-97c5-c52e31e02866"; // <-- ¡IMPORTANTE! Usar el ID real del fotógrafo logueado
 
@@ -187,7 +397,7 @@ app.post("/albums", async (req, res) => {
     // Precio por defecto si no se especifica
     const finalPrice = price_per_photo ? Number(price_per_photo) : 15.0;
 
-    console.log("Intentando crear álbum con datos:", { name, event_date, description, price_per_photo: finalPrice, photographer_user_id });
+    logger.info('Creando nuevo álbum', { name, event_date, price_per_photo: finalPrice });
     
     try {
         const { data: album, error } = await supabaseAdmin
@@ -203,7 +413,7 @@ app.post("/albums", async (req, res) => {
             .single();
 
         if (error) {
-            console.error("Error al crear álbum:", error.message);
+            logger.error('Error al crear álbum', { error: error.message });
             return res.status(500).json({ message: `Error al crear álbum: ${error.message}` });
         }
         res.status(201).json({ message: "Álbum creado exitosamente.", album });
@@ -238,7 +448,7 @@ app.get("/albums/:albumId/photos", async (req, res) => {
             public_watermarked_url: `${supabaseUrl}/storage/v1/object/public/watermarked-photos/${photo.watermarked_file_path}`,
         }));
 
-        console.log(`✓ Álbum ${albumId}: Devolviendo ${photos.length} fotos con precios:`, photos.map(p => `$${p.price}`).join(', '));
+        logger.info('Fotos obtenidas para galería', { albumId, count: photos.length });
 
         res.status(200).json({
             message: `Fotos obtenidas exitosamente para el álbum ${albumId}.`,
@@ -250,8 +460,8 @@ app.get("/albums/:albumId/photos", async (req, res) => {
     }
 });
 
-// Ruta de login para fotógrafos
-app.post("/login", async (req, res) => {
+// Ruta de login para fotógrafos (CON RATE LIMITING)
+app.post("/login", authLimiter, async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -368,7 +578,7 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
 
         // Precio del álbum (con fallback a 15.0)
         albumPrice = album.price_per_photo || 15.0;
-        console.log(`Usando precio del álbum: $${albumPrice}`);
+        logger.info('Subida de fotos iniciada', { albumId, albumPrice, photographerId });
 
     } catch (dbError) {
         console.error("Error de base de datos al verificar álbum:", dbError);
@@ -484,13 +694,12 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
     });
 });
 
-// --- NUEVA RUTA: Webhook de Mercado Pago ---
-// Ruta RAW: poner ANTES de app.use(express.json()) global, o usar el middleware específico como abajo.
-// Si mantenés tu express.json() global, declaralo así con middleware específico:
-const replayProtectionCache = new Map(); // In-memory cache for anti-replay protection
-const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
+// Cache para protección anti-replay en webhooks
+const replayProtectionCache = new Map();
+const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutos TTL
 
-app.post("/mercadopago-webhook", express.json(), async (req, res) => {
+// --- NUEVA RUTA: Webhook de Mercado Pago (CON RATE LIMITING)
+app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res) => {
     const webhookStartTime = Date.now();
     const webhookLogId = `WH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -1348,4 +1557,251 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         res.status(500).send("Error interno al generar descarga");
     }
 });
+
+// ===== ENDPOINTS DE MONITOREO Y DEBUGGING =====
+
+// Obtener logs del buffer
+app.get("/api/monitoring/logs", (req, res) => {
+    const { level, limit = 100 } = req.query;
+    
+    let logs = [...logBuffer];
+    
+    // Filtrar por nivel si se especifica
+    if (level && level.toUpperCase() !== 'ALL') {
+        logs = logs.filter(log => log.level === level.toUpperCase());
+    }
+    
+    // Limitar cantidad
+    logs = logs.slice(-parseInt(limit));
+    
+    res.json({
+        total: logs.length,
+        logs: logs.reverse() // Más recientes primero
+    });
+});
+
+// Limpiar logs
+app.delete("/api/monitoring/logs", (req, res) => {
+    const count = logBuffer.length;
+    logBuffer.length = 0;
+    logger.info('Logs limpiados manualmente', { count });
+    res.json({ message: `${count} logs eliminados` });
+});
+
+// Configurar nivel de log
+app.post("/api/monitoring/log-level", (req, res) => {
+    const { level } = req.body;
+    
+    if (!LOG_LEVELS[level.toUpperCase()]) {
+        return res.status(400).json({ error: 'Nivel inválido. Usa: DEBUG, INFO, WARN, ERROR' });
+    }
+    
+    currentLogLevel = level.toUpperCase();
+    logger.info(`Nivel de log cambiado a ${currentLogLevel}`);
+    
+    res.json({ level: currentLogLevel });
+});
+
+// Habilitar/deshabilitar logs en consola
+app.post("/api/monitoring/console-logging", (req, res) => {
+    const { enabled } = req.body;
+    consoleLoggingEnabled = enabled;
+    logger.info(`Console logging ${enabled ? 'habilitado' : 'deshabilitado'}`);
+    res.json({ consoleLoggingEnabled });
+});
+
+// Obtener métricas
+app.get("/api/monitoring/metrics", (req, res) => {
+    const uptime = Date.now() - metrics.startTime;
+    const avgResponseTime = metrics.responseTimes.length > 0
+        ? metrics.responseTimes.reduce((a, b) => a + b, 0) / metrics.responseTimes.length
+        : 0;
+    
+    res.json({
+        uptime: {
+            ms: uptime,
+            formatted: formatUptime(uptime)
+        },
+        requests: metrics.requests,
+        errors: metrics.errors,
+        photos: metrics.photos,
+        albums: metrics.albums,
+        orders: metrics.orders,
+        performance: {
+            avgResponseTime: Math.round(avgResponseTime),
+            minResponseTime: Math.min(...metrics.responseTimes),
+            maxResponseTime: Math.max(...metrics.responseTimes)
+        },
+        system: {
+            nodeVersion: process.version,
+            platform: process.platform,
+            memory: process.memoryUsage()
+        },
+        config: {
+            logLevel: currentLogLevel,
+            consoleLoggingEnabled
+        }
+    });
+});
+
+// Resetear métricas
+app.delete("/api/monitoring/metrics", (req, res) => {
+    metrics.requests = { total: 0, byEndpoint: {}, byStatusCode: {} };
+    metrics.errors = { total: 0, byType: {} };
+    metrics.photos = { uploaded: 0, downloaded: 0 };
+    metrics.albums = { created: 0 };
+    metrics.orders = { created: 0, paid: 0 };
+    metrics.responseTimes = [];
+    
+    logger.info('Métricas reseteadas');
+    res.json({ message: 'Métricas reseteadas' });
+});
+
+// Health check
+app.get("/api/monitoring/health", async (req, res) => {
+    const checks = {
+        server: 'ok',
+        database: 'checking',
+        storage: 'checking'
+    };
+    
+    try {
+        // Test database
+        const { error: dbError } = await supabaseAdmin.from('albums').select('id').limit(1);
+        checks.database = dbError ? 'error' : 'ok';
+        
+        // Test storage
+        const { data: buckets, error: storageError } = await supabaseAdmin.storage.listBuckets();
+        checks.storage = storageError ? 'error' : 'ok';
+        
+        const allOk = Object.values(checks).every(status => status === 'ok');
+        
+        res.status(allOk ? 200 : 503).json({
+            status: allOk ? 'healthy' : 'degraded',
+            checks,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        logger.error('Health check failed', { error: err.message });
+        res.status(503).json({
+            status: 'unhealthy',
+            checks,
+            error: err.message
+        });
+    }
+});
+
+// ===== ENDPOINTS DE TESTING =====
+
+// Test de creación de álbum
+app.post("/api/testing/create-test-album", async (req, res) => {
+    try {
+        const testAlbum = {
+            name: `Test Album ${Date.now()}`,
+            event_date: new Date().toISOString().split('T')[0],
+            description: 'Álbum de prueba generado automáticamente',
+            price_per_photo: 50,
+            photographer_user_id: '65805569-2e32-46a0-97c5-c52e31e02866'
+        };
+        
+        const { data, error } = await supabaseAdmin
+            .from('albums')
+            .insert(testAlbum)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        metrics.albums.created++;
+        logger.info('Test album created', { albumId: data.id });
+        
+        res.json({ success: true, album: data });
+    } catch (err) {
+        logger.error('Failed to create test album', { error: err.message });
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Limpiar datos de prueba
+app.delete("/api/testing/cleanup-test-data", async (req, res) => {
+    try {
+        // Eliminar álbumes de prueba (que contengan "Test" en el nombre)
+        const { data: testAlbums } = await supabaseAdmin
+            .from('albums')
+            .select('id')
+            .ilike('name', '%test%');
+        
+        if (testAlbums && testAlbums.length > 0) {
+            const albumIds = testAlbums.map(a => a.id);
+            
+            // Eliminar fotos de álbumes de prueba
+            await supabaseAdmin.from('photos').delete().in('album_id', albumIds);
+            
+            // Eliminar álbumes
+            await supabaseAdmin.from('albums').delete().in('id', albumIds);
+        }
+        
+        logger.info('Test data cleaned up', { albumsDeleted: testAlbums?.length || 0 });
+        
+        res.json({ 
+            success: true, 
+            deleted: {
+                albums: testAlbums?.length || 0
+            }
+        });
+    } catch (err) {
+        logger.error('Failed to cleanup test data', { error: err.message });
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Simular error para testing
+app.get("/api/testing/simulate-error", (req, res) => {
+    const errorType = req.query.type || '500';
+    
+    metrics.errors.total++;
+    metrics.errors.byType[errorType] = (metrics.errors.byType[errorType] || 0) + 1;
+    
+    logger.error(`Simulated error: ${errorType}`);
+    
+    switch(errorType) {
+        case '400':
+            res.status(400).json({ error: 'Bad Request (simulado)' });
+            break;
+        case '404':
+            res.status(404).json({ error: 'Not Found (simulado)' });
+            break;
+        case '500':
+        default:
+            res.status(500).json({ error: 'Internal Server Error (simulado)' });
+    }
+});
+
+// Test de performance (respuesta lenta)
+app.get("/api/testing/slow-endpoint", async (req, res) => {
+    const delay = parseInt(req.query.delay) || 3000;
+    logger.warn(`Slow endpoint called with ${delay}ms delay`);
+    
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    res.json({ 
+        message: 'Respuesta retrasada completada',
+        delay: `${delay}ms`
+    });
+});
+
+// Función helper para formatear uptime
+function formatUptime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
+}
+
+// ===== FIN DE ENDPOINTS DE MONITOREO =====
 
