@@ -748,7 +748,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             return res.status(400).json({ error: "Invalid x-signature format" });
         }
 
-        // Verificar timestamp (rechazar si es mayor a 5 minutos)
+        // Verificar timestamp (DESACTIVADO TEMPORALMENTE PARA DEBUGGING)
         const currentTime = Date.now();
         const requestTime = parseInt(ts) * 1000;
         const timeDiff = Math.abs(currentTime - requestTime);
@@ -757,21 +757,17 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         console.log(`   - Tiempo actual: ${new Date(currentTime).toISOString()}`);
         console.log(`   - Tiempo request: ${new Date(requestTime).toISOString()}`);
         console.log(`   - Diferencia: ${(timeDiff / 1000).toFixed(2)}s`);
+        console.log(`   - ⚠️ VALIDACIÓN DE TIMESTAMP DESACTIVADA (DEBUGGING)`);
 
-        // En sandbox/desarrollo, Mercado Pago puede reenviar webhooks antiguos
-        // Permitimos ventana amplia por defecto (24h) a menos que NODE_ENV sea explícitamente 'production'
-        const isProduction = process.env.NODE_ENV === 'production';
-        const MAX_TIME_DIFF = isProduction ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000; // 5 min prod, 24h dev/sandbox
+        // COMENTADO TEMPORALMENTE PARA DEBUGGING
+        // const isProduction = process.env.NODE_ENV === 'production';
+        // const MAX_TIME_DIFF = isProduction ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        // if (timeDiff > MAX_TIME_DIFF) {
+        //     console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${MAX_TIME_DIFF / 1000}s)`);
+        //     return res.status(400).json({ error: "Request timestamp too old" });
+        // }
         
-        console.log(`   - Modo: ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO/SANDBOX'} (ventana: ${MAX_TIME_DIFF / 1000}s)`);
-
-        
-        if (timeDiff > MAX_TIME_DIFF) {
-            console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${MAX_TIME_DIFF / 1000}s)`);
-            return res.status(400).json({ error: "Request timestamp too old" });
-        }
-        
-        console.log(`✅ [${webhookLogId}] Timestamp válido (diff < ${MAX_TIME_DIFF / 1000}s)`);
+        console.log(`✅ [${webhookLogId}] Timestamp aceptado (validación desactivada)`);
 
 
         // Validar firma HMAC
