@@ -773,6 +773,130 @@ app.post("/mercadopago-webhook", express.json(), async (req, res) => {
     }
 });
 
+// ===== ENDPOINT DE TESTING: Simular Pago Aprobado =====
+app.post("/simulate-payment", express.json(), async (req, res) => {
+    console.log("\n🧪 ===== SIMULACIÓN DE PAGO (SOLO TESTING) =====");
+    
+    try {
+        const { orderId } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ error: "orderId es requerido" });
+        }
+
+        console.log(`🔍 Simulando pago para orden: ${orderId}`);
+
+        // 1. Verificar que la orden existe
+        const { data: existingOrder, error: checkError } = await supabaseAdmin
+            .from("orders")
+            .select("status, customer_email")
+            .eq("id", orderId)
+            .single();
+
+        if (checkError || !existingOrder) {
+            console.error("❌ Orden no encontrada:", checkError);
+            return res.status(404).json({ error: "Orden no encontrada" });
+        }
+
+        if (existingOrder.status === "paid") {
+            console.log("⚠️ Orden ya está marcada como 'paid'");
+            return res.status(200).json({ 
+                status: "already_paid", 
+                message: "La orden ya está pagada" 
+            });
+        }
+
+        console.log(`   - Status actual: ${existingOrder.status}`);
+        console.log(`   - Email: ${existingOrder.customer_email}`);
+
+        // 2. Obtener items del pedido
+        const { data: orderItems, error: itemsError } = await supabaseAdmin
+            .from("order_items")
+            .select("photo_id")
+            .eq(ORDER_FIELD_NAME, orderId);
+
+        if (itemsError || !orderItems || orderItems.length === 0) {
+            console.error("❌ No se encontraron items para esta orden:", itemsError);
+            return res.status(500).json({ error: "Order items not found" });
+        }
+
+        console.log(`   - Fotos en el pedido: ${orderItems.length}`);
+
+        // 3. Obtener rutas de fotos originales
+        const photoIds = orderItems.map((item) => item.photo_id);
+        const { data: photos, error: photosError } = await supabaseAdmin
+            .from("photos")
+            .select("original_file_path")
+            .in("id", photoIds);
+
+        if (photosError || !photos || photos.length === 0) {
+            console.error("❌ No se encontraron fotos:", photosError);
+            return res.status(500).json({ error: "Photos not found" });
+        }
+
+        console.log(`   - Fotos encontradas: ${photos.length}`);
+
+        // 4. Actualizar orden a 'paid'
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const simulatedPaymentId = `test_payment_${Date.now()}`;
+
+        const { error: updateError } = await supabaseAdmin
+            .from("orders")
+            .update({
+                status: "paid",
+                mercado_pago_payment_id: simulatedPaymentId,
+                download_expires_at: expiresAt.toISOString(),
+            })
+            .eq("id", orderId);
+
+        if (updateError) {
+            console.error("❌ Error actualizando orden:", updateError);
+            return res.status(500).json({ error: "Failed to update order" });
+        }
+
+        console.log(`   ✓ Orden actualizada a 'paid'`);
+        console.log(`   - Payment ID simulado: ${simulatedPaymentId}`);
+        console.log(`   - Expira: ${expiresAt.toISOString()}`);
+
+        // 5. Crear registro de descargas
+        const { error: downloadError } = await supabaseAdmin
+            .from("descargas")
+            .upsert(
+                {
+                    order_id: orderId,
+                    user_email: existingOrder.customer_email,
+                    contador: 0,
+                },
+                { onConflict: "order_id" }
+            );
+
+        if (downloadError) {
+            console.error("❌ Error creando registro de descargas:", downloadError);
+        } else {
+            console.log(`   ✓ Registro de descargas creado (contador: 0)`);
+        }
+
+        console.log("\n✅ ===== SIMULACIÓN COMPLETADA =====\n");
+
+        res.status(200).json({ 
+            status: "simulated_success",
+            orderId,
+            customer_email: existingOrder.customer_email,
+            photos: photos.length,
+            expires_at: expiresAt.toISOString(),
+            message: "Pago simulado exitosamente. La orden está lista para descarga.",
+            success_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/success.html?order_id=${orderId}&customer_email=${existingOrder.customer_email}`
+        });
+
+    } catch (error) {
+        console.error("\n❌ Error en simulación de pago:", error);
+        res.status(500).json({ 
+            error: "Internal server error", 
+            details: error.message 
+        });
+    }
+});
+
 // --- NUEVA RUTA: Obtener Detalles de Orden para Página de Éxito ---
 // Esta ruta es llamada por success.html para obtener las fotos compradas.
 app.get("/order-details/:orderId/:customerEmail", async (req, res) => {
