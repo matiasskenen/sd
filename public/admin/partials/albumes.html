@@ -39,13 +39,36 @@
     </div>
 
     <!-- Subida de fotos -->
-    <div class="mb-6">
-      <label for="photos" class="block text-gray-700 text-sm font-medium mb-2">Seleccionar Fotos:</label>
-      <input type="file" id="photos" multiple accept="image/*" webkitdirectory class="input-field">
+    <div class="mb-6 hidden" id="photosUploadSection">
+      <label class="block text-gray-700 text-sm font-medium mb-2">Seleccionar Fotos:</label>
+      <!-- Archivos sueltos -->
+      <input 
+        type="file" 
+        id="photos" 
+        name="photos" 
+        multiple 
+        accept="image/*"
+        class="input-field mb-3"
+      />
+
+      <!-- Carpeta completa (solo Chrome/Edge) -->
+      <input 
+        type="file" 
+        id="photosFolder" 
+        name="photos" 
+        multiple 
+        accept="image/*" 
+        webkitdirectory 
+        class="hidden"
+      />
+
+      <button type="button" id="selectFolderBtn" class="btn-secondary mt-2">
+        📁 Seleccionar carpeta completa
+      </button>
       <div class="preview-grid" id="previewContainer"></div>
     </div>
 
-    <button type="submit" id="uploadButton" class="btn-primary flex items-center justify-center">
+    <button type="submit" id="uploadButton" class="btn-primary flex items-center justify-center hidden">
       <span id="loading-spinner" class="loading-spinner hidden"></span>
       Subir Fotos
     </button>
@@ -59,12 +82,40 @@
 
 <!-- Gestión de Álbumes Existentes -->
 <div class="mt-12">
-  <h2 class="text-2xl font-bold text-gray-800 mb-6">Álbumes Existentes</h2>
-  <button id="reloadAlbums" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-    <i class="fas fa-sync-alt mr-1"></i> Recargar
-  </button>
-  <div id="albumsList" class="space-y-8">
-    <p class="text-gray-500">Cargando álbumes...</p>
+  <div class="flex justify-between items-center mb-6">
+    <button id="toggleAlbumsSection" class="flex items-center gap-2 text-2xl font-bold text-gray-800 hover:text-indigo-600 transition-colors">
+      <i id="toggleAlbumsIcon" class="fas fa-chevron-down transition-transform"></i>
+      <span>Álbumes Existentes</span>
+    </button>
+    <button id="reloadAlbums" class="bg-green-500 hover:bg-green-600 text-white w-10 h-10 rounded flex items-center justify-center" title="Recargar página">
+      <i class="fas fa-sync-alt"></i>
+    </button>
+  </div>
+  
+  <!-- Filtros -->
+  <div id="albumsContent" class="hidden">
+    <div class="flex gap-4 mb-6">
+      <div class="flex-1">
+        <input 
+          type="text" 
+          id="searchAlbumText" 
+          placeholder="🔍 Buscar por nombre, descripción o colegio..." 
+          class="input-field w-full"
+        />
+      </div>
+      <div class="w-64">
+        <input 
+          type="date" 
+          id="filterAlbumDate" 
+          placeholder="Filtrar por fecha" 
+          class="input-field w-full"
+        />
+      </div>
+    </div>
+
+    <div id="albumsList" class="space-y-8">
+      <p class="text-gray-500">Cargando álbumes...</p>
+    </div>
   </div>
 </div>
 

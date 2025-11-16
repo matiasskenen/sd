@@ -14,6 +14,9 @@ export function init() {
   const albumSelect = document.getElementById('albumSelect');
   const newAlbumNameInput = document.getElementById('newAlbumNameInput');
   const photosInput = document.getElementById('photos');
+  const photosFolderInput = document.getElementById('photosFolder');
+  const selectFolderBtn = document.getElementById('selectFolderBtn');
+  const photosUploadSection = document.getElementById('photosUploadSection');
   const previewContainer = document.getElementById('previewContainer');
   const uploadButton = document.getElementById('uploadButton');
   const loadingSpinner = document.getElementById('loading-spinner');
@@ -22,6 +25,11 @@ export function init() {
   const clearAlbumSelectionButton = document.getElementById('clearAlbumSelection');
   const newAlbumDateInput = document.getElementById('newAlbumDateInput');
   const newAlbumDescriptionInput = document.getElementById('newAlbumDescriptionInput');
+
+  // Toggle Albums Section
+  const toggleAlbumsSection = document.getElementById('toggleAlbumsSection');
+  const toggleAlbumsIcon = document.getElementById('toggleAlbumsIcon');
+  const albumsContent = document.getElementById('albumsContent');
 
   const showMessage = (msg, type) => {
     messageDiv.textContent = msg;
@@ -109,7 +117,12 @@ const createAlbum = async () => {
       newAlbumDescriptionInput.value = '';
       await fetchAlbums();
       albumSelect.value = data.album.id;
+      // ✅ Volver al modo selección y MOSTRAR sección de fotos
+      albumCreationMode.classList.add('hidden');
+      albumSelectionMode.classList.remove('hidden');
       setAlbumSelectionState();
+      // ✅ Recargar lista de álbumes existentes automáticamente
+      fetchAlbumsWithPhotos();
       return data.album.id;
     } else {
       showMessage(`Error al crear álbum: ${data.message}`, 'error');
@@ -126,7 +139,6 @@ const createAlbum = async () => {
 
   const setAlbumSelectionState = () => {
     const selectedAlbumId = albumSelect.value;
-    const newAlbumNameEntered = newAlbumNameInput.value.trim().length > 0;
     if (selectedAlbumId) {
       newAlbumNameInput.disabled = true;
       confirmCreateAlbumButton.disabled = true;
@@ -135,22 +147,25 @@ const createAlbum = async () => {
       clearAlbumSelectionButton.classList.remove('hidden');
       albumCreationMode.classList.add('hidden');
       albumSelectionMode.classList.remove('hidden');
-    } else if (newAlbumNameEntered) {
-      albumSelect.disabled = true;
-      toggleCreateNewAlbumModeButton.disabled = true;
-      clearAlbumSelectionButton.classList.add('hidden');
+      // ✅ MOSTRAR sección de fotos cuando se selecciona un álbum
+      photosUploadSection.classList.remove('hidden');
+      uploadButton.classList.remove('hidden');
     } else {
-      albumSelect.disabled = false;
-      newAlbumNameInput.disabled = false;
-      toggleCreateNewAlbumModeButton.disabled = false;
-      clearAlbumSelectionButton.classList.add('hidden');
-      albumCreationMode.classList.add('hidden');
-      albumSelectionMode.classList.remove('hidden');
+      // Solo ocultar fotos si NO estamos en modo creación de álbum
+      const inCreationMode = !albumCreationMode.classList.contains('hidden');
+      if (!inCreationMode) {
+        albumSelect.disabled = false;
+        newAlbumNameInput.disabled = false;
+        toggleCreateNewAlbumModeButton.disabled = false;
+        clearAlbumSelectionButton.classList.add('hidden');
+        // ✅ OCULTAR sección de fotos si no hay álbum seleccionado
+        photosUploadSection.classList.add('hidden');
+        uploadButton.classList.add('hidden');
+      }
     }
   };
 
   albumSelect.addEventListener('change', setAlbumSelectionState);
-  newAlbumNameInput.addEventListener('input', setAlbumSelectionState);
   clearAlbumSelectionButton.addEventListener('click', () => {
     albumSelect.value = "";
     setAlbumSelectionState();
@@ -165,30 +180,73 @@ const createAlbum = async () => {
     confirmCreateAlbumButton.disabled = false;
     cancelCreateAlbumButton.disabled = false;
     toggleCreateNewAlbumModeButton.disabled = false;
+    // ✅ OCULTAR sección de fotos al crear nuevo álbum
+    photosUploadSection.classList.add('hidden');
+    uploadButton.classList.add('hidden');
+    previewContainer.innerHTML = ''; // limpiar previsualizaciones
     newAlbumNameInput.focus();
   });
   cancelCreateAlbumButton.addEventListener('click', () => {
     newAlbumNameInput.value = '';
+    newAlbumDateInput.value = '';
+    newAlbumDescriptionInput.value = '';
     albumCreationMode.classList.add('hidden');
     albumSelectionMode.classList.remove('hidden');
     albumSelect.disabled = false;
+    // ✅ Volver al estado original (fotos ocultas si no hay álbum seleccionado)
     setAlbumSelectionState();
   });
   confirmCreateAlbumButton.addEventListener('click', createAlbum);
 
-    photosInput.addEventListener('change', async (event) => {
+  // ✅ Listener para botón "Seleccionar carpeta completa"
+  selectFolderBtn.addEventListener('click', () => {
+    photosFolderInput.click(); // abre el selector de carpeta
+  });
+
+  // ✅ Listener para el input de carpeta (webkitdirectory)
+  photosFolderInput.addEventListener('change', async (event) => {
+    // Transferir archivos seleccionados al input principal
+    const dt = new DataTransfer();
+    Array.from(event.target.files).forEach(file => dt.items.add(file));
+    photosInput.files = dt.files;
+    // Disparar evento change en photosInput para generar previsualizaciones
+    photosInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  // ✅ Listener para el input de fotos individuales
+  photosInput.addEventListener('change', async (event) => {
       previewContainer.innerHTML = '';
       const watermarkUrl = '/assets/watermark.png'; // ruta pública accesible desde el frontend
 
-      // Cargar marca de agua como imagen
+      // Cargar marca de agua como imagen (pero no romper si falla)
       const watermarkImg = new Image();
       watermarkImg.src = watermarkUrl;
-      await new Promise(res => watermarkImg.onload = res);
+      try {
+        await new Promise((res, rej) => { watermarkImg.onload = res; watermarkImg.onerror = rej; });
+      } catch (err) {
+        console.warn('No se pudo cargar la marca de agua para la previsualización:', err);
+      }
+
+      // Helper: detectar imágenes aunque file.type esté vacío (pasa en algunas plataformas)
+      const looksLikeImage = (file) => {
+        if (file.type && file.type.startsWith('image/')) return true;
+        return /\.(jpe?g|png|gif|bmp|webp|heic|heif|tiff)$/i.test(file.name || '');
+      };
 
       Array.from(event.target.files).forEach(file => {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = async (e) => {
+        if (!looksLikeImage(file)) {
+          // mostrar un placeholder con el nombre del archivo para ayudar al usuario
+          const placeholder = document.createElement('div');
+          placeholder.className = 'preview-item preview-placeholder';
+          placeholder.innerHTML = `<div class="placeholder-text">No es una imagen reconocida: ${file.name}</div>`;
+          previewContainer.appendChild(placeholder);
+          console.log('Archivo ignorado (no parece imagen):', file.name, file.type);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
             // Crear imagen de la foto original
             const img = new Image();
             img.src = e.target.result;
@@ -203,25 +261,30 @@ const createAlbum = async () => {
             // Dibujar la foto original
             ctx.drawImage(img, 0, 0);
 
-            // Calcular tamaño proporcional para la marca de agua
-            const wmWidth = img.width * 0.25; // 25% del ancho
-            const wmHeight = watermarkImg.height * (wmWidth / watermarkImg.width);
-
-            // Posicionar marca de agua en el centro (igual que en Sharp)
-            const wmX = (img.width - wmWidth) / 2;
-            const wmY = (img.height - wmHeight) / 2;
-
-            ctx.globalAlpha = 0.5; // transparencia
-            ctx.drawImage(watermarkImg, wmX, wmY, wmWidth, wmHeight);
+            // Si la marca de agua cargó, dibujarla proporcionalmente
+            if (watermarkImg && watermarkImg.width) {
+              const wmWidth = img.width * 0.25; // 25% del ancho
+              const wmHeight = watermarkImg.height * (wmWidth / watermarkImg.width);
+              const wmX = (img.width - wmWidth) / 2;
+              const wmY = (img.height - wmHeight) / 2;
+              ctx.globalAlpha = 0.5; // transparencia
+              ctx.drawImage(watermarkImg, wmX, wmY, wmWidth, wmHeight);
+            }
 
             // Crear preview
             const previewItem = document.createElement('div');
             previewItem.className = 'preview-item';
             previewItem.innerHTML = `<img src="${canvas.toDataURL('image/jpeg', 0.8)}" alt="Preview">`;
             previewContainer.appendChild(previewItem);
-          };
-          reader.readAsDataURL(file);
-        }
+          } catch (err) {
+            console.error('Error generando preview para', file.name, err);
+            const placeholder = document.createElement('div');
+            placeholder.className = 'preview-item preview-placeholder';
+            placeholder.innerHTML = `<div class="placeholder-text">Error mostrando: ${file.name}</div>`;
+            previewContainer.appendChild(placeholder);
+          }
+        };
+        reader.readAsDataURL(file);
       });
     });
 
@@ -252,6 +315,8 @@ const createAlbum = async () => {
         uploadForm.reset();
         previewContainer.innerHTML = '';
         fetchAlbums();
+        // ✅ Recargar automáticamente la lista de álbumes con las nuevas fotos
+        fetchAlbumsWithPhotos();
       } else {
         showMessage(`Error: ${data.message}`, 'error');
       }
@@ -265,8 +330,26 @@ const createAlbum = async () => {
   // Cargar álbumes al entrar
   fetchAlbums();
 
+  // Toggle Albums Section (collapsar/expandir)
+  if (toggleAlbumsSection && toggleAlbumsIcon && albumsContent) {
+    toggleAlbumsSection.addEventListener('click', () => {
+      const isHidden = albumsContent.classList.contains('hidden');
+      if (isHidden) {
+        albumsContent.classList.remove('hidden');
+        toggleAlbumsIcon.classList.add('rotate-180');
+      } else {
+        albumsContent.classList.add('hidden');
+        toggleAlbumsIcon.classList.remove('rotate-180');
+      }
+    });
+  }
 
   const albumsList = document.getElementById('albumsList');
+  const searchAlbumText = document.getElementById('searchAlbumText');
+  const filterAlbumDate = document.getElementById('filterAlbumDate');
+  
+  // Variable para almacenar todos los álbumes sin filtrar
+  let allAlbumsData = [];
 
 const fetchAlbumsWithPhotos = async () => {
   albumsList.innerHTML = `<p class="text-gray-500">Cargando álbumes...</p>`;
@@ -275,14 +358,26 @@ const fetchAlbumsWithPhotos = async () => {
     const data = await res.json();
 
     if (res.ok && Array.isArray(data)) {
-      if (data.length === 0) {
-        albumsList.innerHTML = `<p class="text-gray-500">No hay álbumes creados.</p>`;
-        return;
-      }
+      allAlbumsData = data; // Guardar datos sin filtrar
+      renderAlbums(data); // Renderizar con datos completos
+    } else {
+      albumsList.innerHTML = `<p class="text-red-500">Error al cargar álbumes.</p>`;
+    }
+  } catch (err) {
+    console.error(err);
+    albumsList.innerHTML = `<p class="text-red-500">Error de conexión.</p>`;
+  }
+};
 
-      albumsList.innerHTML = "";
+const renderAlbums = (data) => {
+  if (data.length === 0) {
+    albumsList.innerHTML = `<p class="text-gray-500">No hay álbumes que coincidan con los filtros.</p>`;
+    return;
+  }
 
-      data.forEach(album => {
+  albumsList.innerHTML = "";
+
+  data.forEach(album => {
         const albumCard = document.createElement("div");
         albumCard.className = "bg-white p-4 rounded-lg shadow-md";
 
@@ -312,54 +407,159 @@ const fetchAlbumsWithPhotos = async () => {
         // Lista de fotos
         let photosHtml = "";
         if (album.photos?.length) {
+          const maxPhotosToShow = 8;
+          const photosToDisplay = album.photos.slice(0, maxPhotosToShow);
+          const hasMorePhotos = album.photos.length > maxPhotosToShow;
+          
           photosHtml = `
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              ${album.photos.map(photo => `
+              ${photosToDisplay.map(photo => `
                 <div class="relative group">
                   <img src="${photo.public_watermarked_url}" alt="Foto" class="w-full h-32 object-cover rounded">
                   <button 
-                    class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 delete-photo"
+                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 delete-photo flex items-center justify-center shadow-lg transition-opacity"
                     data-id="${photo.id}"
+                    title="Eliminar foto"
                   >
-                    <i class="fas fa-trash-alt"></i>
+                    <i class="fas fa-trash-alt text-sm"></i>
                   </button>
                 </div>
               `).join("")}
             </div>
+            ${hasMorePhotos ? `
+              <button 
+                class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded view-all-photos"
+                data-album-id="${album.id}"
+                data-album-name="${album.name}"
+              >
+                Ver todas las fotos (${album.photos.length})
+              </button>
+            ` : ''}
           `;
         } else {
           photosHtml = `<p class="text-gray-400">No hay fotos en este álbum.</p>`;
         }
 
-        albumCard.innerHTML = header + photosHtml;
-        albumsList.appendChild(albumCard);
-      });
+    albumCard.innerHTML = header + photosHtml;
+    albumsList.appendChild(albumCard);
+  });
 
-      // Listeners para eliminar álbum
-      document.querySelectorAll(".delete-album").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if (confirm("¿Seguro que quieres eliminar este álbum y todas sus fotos?")) {
-            await deleteAlbum(btn.dataset.id);
-          }
-        });
-      });
+  // Listeners para eliminar álbum
+  document.querySelectorAll(".delete-album").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (confirm("¿Seguro que quieres eliminar este álbum y todas sus fotos?")) {
+        await deleteAlbum(btn.dataset.id);
+      }
+    });
+  });
 
-      // Listeners para eliminar foto
-      document.querySelectorAll(".delete-photo").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if (confirm("¿Seguro que quieres eliminar esta foto?")) {
-            await deletePhoto(btn.dataset.id);
-          }
-        });
-      });
+  // Listeners para eliminar foto
+  document.querySelectorAll(".delete-photo").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (confirm("¿Seguro que quieres eliminar esta foto?")) {
+        await deletePhoto(btn.dataset.id);
+      }
+    });
+  });
 
-    } else {
-      albumsList.innerHTML = `<p class="text-red-500">Error al cargar álbumes.</p>`;
-    }
-  } catch (err) {
-    console.error(err);
-    albumsList.innerHTML = `<p class="text-red-500">Error de conexión.</p>`;
+  // Listeners para ver todas las fotos
+  document.querySelectorAll(".view-all-photos").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const albumId = btn.dataset.albumId;
+      const albumName = btn.dataset.albumName;
+      const albumData = allAlbumsData.find(a => a.id === albumId);
+      if (albumData) {
+        openPhotosModal(albumData);
+      }
+    });
+  });
+};
+
+// Función para abrir modal con todas las fotos
+const openPhotosModal = (album) => {
+  // Crear modal si no existe
+  let modal = document.getElementById('allPhotosModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'allPhotosModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-auto relative">
+        <div class="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
+          <h3 class="text-xl font-bold" id="modalAlbumTitle"></h3>
+          <button id="closePhotosModal" class="text-gray-500 hover:text-gray-700 text-3xl leading-none w-10 h-10 flex items-center justify-center">×</button>
+        </div>
+        <div class="p-6">
+          <div id="modalPhotosGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Listener para cerrar modal
+    document.getElementById('closePhotosModal').addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+    
+    // Cerrar al hacer clic fuera del contenido
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
   }
+
+  // Actualizar contenido del modal
+  document.getElementById('modalAlbumTitle').textContent = `${album.name} (${album.photos.length} fotos)`;
+  const grid = document.getElementById('modalPhotosGrid');
+  grid.innerHTML = album.photos.map(photo => `
+    <div class="relative group">
+      <img src="${photo.public_watermarked_url}" alt="Foto" class="w-full h-48 object-cover rounded">
+      <button 
+        class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-9 h-9 rounded-full opacity-0 group-hover:opacity-100 delete-photo-modal flex items-center justify-center shadow-lg transition-opacity"
+        data-id="${photo.id}" title="Eliminar foto"
+      >
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </div>
+  `).join('');
+
+  // Agregar listeners a los botones de eliminar del modal
+  grid.querySelectorAll('.delete-photo-modal').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (confirm('¿Seguro que quieres eliminar esta foto?')) {
+        await deletePhoto(btn.dataset.id);
+        modal.classList.add('hidden');
+      }
+    });
+  });
+
+  // Mostrar modal
+  modal.classList.remove('hidden');
+};
+
+// Función para filtrar álbumes
+const filterAlbums = () => {
+  const searchText = searchAlbumText.value.toLowerCase().trim();
+  const filterDate = filterAlbumDate.value;
+
+  let filtered = allAlbumsData;
+
+  // Filtrar por texto (nombre, descripción)
+  if (searchText) {
+    filtered = filtered.filter(album => {
+      const name = album.name?.toLowerCase() || '';
+      const description = album.description?.toLowerCase() || '';
+      return name.includes(searchText) || description.includes(searchText);
+    });
+  }
+
+  // Filtrar por fecha
+  if (filterDate) {
+    filtered = filtered.filter(album => album.event_date === filterDate);
+  }
+
+  renderAlbums(filtered);
 };
 
 const deleteAlbum = async (albumId) => {
@@ -438,8 +638,12 @@ const deletePhoto = async (photoId) => {
   fetchAlbumsWithPhotos();
 
   document.getElementById("reloadAlbums").addEventListener("click", () => {
-  fetchAlbumsWithPhotos();
-  fetchAlbums(); // refresca también el dropdown
-});
+    fetchAlbumsWithPhotos();
+    fetchAlbums(); // refresca también el dropdown
+  });
+
+  // Listeners para filtros
+  searchAlbumText.addEventListener('input', filterAlbums);
+  filterAlbumDate.addEventListener('change', filterAlbums);
 
 }

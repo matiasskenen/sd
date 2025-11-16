@@ -1,6 +1,25 @@
 <div class="card">
   <h1 class="text-3xl font-extrabold text-gray-800 mb-8 text-center">Historial de Pedidos</h1>
 
+  <!-- Filtros y Acciones -->
+  <div class="flex gap-4 mb-6 items-center">
+    <div class="flex-1">
+      <input 
+        type="date" 
+        id="filterOrderDate" 
+        class="input-field w-full"
+        placeholder="Filtrar por fecha"
+      />
+    </div>
+    <button id="clearDateFilter" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+      Limpiar filtro
+    </button>
+    <button id="deleteAllOrders" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2">
+      <i class="fas fa-trash-alt"></i>
+      Eliminar todos
+    </button>
+  </div>
+
   <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
     <thead>
       <tr class="bg-indigo-600 text-white">
@@ -9,11 +28,12 @@
         <th class="py-3 px-4 text-left">Fecha</th>
         <th class="py-3 px-4 text-left">Estado</th>
         <th class="py-3 px-4 text-right">Monto Total</th>
+        <th class="py-3 px-4 text-center">Acciones</th>
       </tr>
     </thead>
     <tbody id="ordersTableBody">
       <tr>
-        <td colspan="5" class="text-center py-4 text-gray-500">Cargando pedidos...</td>
+        <td colspan="6" class="text-center py-4 text-gray-500">Cargando pedidos...</td>
       </tr>
     </tbody>
   </table>

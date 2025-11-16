@@ -33,6 +33,11 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Cliente Supabase con rol de servicio (para operaciones administrativas y escritura en buckets privados)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+// Nombres de buckets de Supabase
+const ORIGINAL_BUCKET_NAME = "original-photos";
+const WATERMARKED_BUCKET_NAME = "watermarked-photos";
+const ORDER_FIELD_NAME = "order_id";
+
 // Crea una instancia del cliente de Mercado Pago con tu Access Token
 const client = new mercadopago.MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -392,7 +397,7 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
                 .toBuffer();
 
             // Subir imagen con marca de agua
-            const { error: uploadWatermarkedError } = await supabaseAdmin.storage.from("watermarked-photos").upload(watermarkedFilePath, watermarkedBuffer, {
+            const { error: uploadWatermarkedError } = await supabaseAdmin.storage.from(WATERMARKED_BUCKET_NAME).upload(watermarkedFilePath, watermarkedBuffer, {
                 contentType: "image/jpeg",
                 upsert: false,
             });
@@ -461,144 +466,310 @@ const replayProtectionCache = new Map(); // In-memory cache for anti-replay prot
 const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
 
 app.post("/mercadopago-webhook", express.json(), async (req, res) => {
-    console.log("📩 Webhook recibido de Mercado Pago");
+    const webhookStartTime = Date.now();
+    const webhookLogId = `WH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`\n${"=".repeat(80)}`);
+    console.log(`📩 [${webhookLogId}] Webhook recibido de Mercado Pago`);
+    console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+    console.log(`${"=".repeat(80)}\n`);
 
     try {
-        const signature = req.headers["x-mp-signature"];
-        if (!signature) {
-            console.error("❌ Falta la firma del webhook (x-mp-signature).");
-            return res.status(400).send("Falta la firma del webhook.");
+        // ===== 1. VALIDACIÓN DE ORIGEN (x-signature) =====
+        const xSignature = req.headers["x-signature"];
+        const xRequestId = req.headers["x-request-id"];
+        
+        console.log(`🔐 [${webhookLogId}] Headers recibidos:`);
+        console.log(`   - x-signature: ${xSignature ? "✓ Presente" : "✗ Faltante"}`);
+        console.log(`   - x-request-id: ${xRequestId || "N/A"}`);
+
+        if (!xSignature) {
+            console.error(`❌ [${webhookLogId}] RECHAZADO: Falta x-signature`);
+            return res.status(400).json({ error: "Missing x-signature header" });
         }
 
-        const payload = JSON.stringify(req.body);
+        // Validar firma según documentación de MP
+        const dataId = req.query.id || req.body.data?.id;
+        const topic = req.query.topic || req.body.type;
+        
+        // Construir el mensaje según MP docs: id + data_id
+        const parts = xSignature.split(",");
+        let ts, hash;
+        
+        parts.forEach(part => {
+            const [key, value] = part.split("=");
+            if (key && value) {
+                const trimmedKey = key.trim();
+                const trimmedValue = value.trim();
+                if (trimmedKey === "ts") ts = trimmedValue;
+                if (trimmedKey === "v1") hash = trimmedValue;
+            }
+        });
+
+        if (!ts || !hash) {
+            console.error(`❌ [${webhookLogId}] RECHAZADO: Formato de x-signature inválido`);
+            return res.status(400).json({ error: "Invalid x-signature format" });
+        }
+
+        // Verificar timestamp (rechazar si es mayor a 5 minutos)
+        const currentTime = Date.now();
+        const requestTime = parseInt(ts) * 1000;
+        const timeDiff = Math.abs(currentTime - requestTime);
+        
+        console.log(`⏱️ [${webhookLogId}] Validación de timestamp:`);
+        console.log(`   - Tiempo actual: ${new Date(currentTime).toISOString()}`);
+        console.log(`   - Tiempo request: ${new Date(requestTime).toISOString()}`);
+        console.log(`   - Diferencia: ${(timeDiff / 1000).toFixed(2)}s`);
+
+        if (timeDiff > 5 * 60 * 1000) {
+            console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${5 * 60}s)`);
+            return res.status(400).json({ error: "Request timestamp too old" });
+        }
+
+        // Validar firma HMAC
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-
+        const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+        
         const crypto = require("crypto");
-        const hash = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+        const hmac = crypto.createHmac("sha256", secret);
+        hmac.update(manifest);
+        const computedHash = hmac.digest("hex");
 
-        if (hash !== signature) {
-            console.error("❌ Firma del webhook inválida.");
-            return res.status(401).send("Firma del webhook inválida.");
+        console.log(`🔑 [${webhookLogId}] Validación HMAC:`);
+        console.log(`   - Manifest: ${manifest}`);
+        console.log(`   - Hash esperado: ${hash}`);
+        console.log(`   - Hash calculado: ${computedHash}`);
+        console.log(`   - Match: ${computedHash === hash ? "✓ SÍ" : "✗ NO"}`);
+
+        if (computedHash !== hash) {
+            console.error(`❌ [${webhookLogId}] RECHAZADO: Firma HMAC inválida`);
+            return res.status(401).json({ error: "Invalid signature" });
         }
 
-        const webhookId = req.body.id || req.query.id;
-        const timestamp = req.headers["x-mp-timestamp"];
+        console.log(`✅ [${webhookLogId}] Firma validada correctamente\n`);
 
-        if (!webhookId || !timestamp) {
-            console.error("❌ Falta el ID o el timestamp del webhook.");
-            return res.status(400).send("Falta el ID o el timestamp del webhook.");
+        // ===== 2. IDEMPOTENCIA (evitar procesamiento duplicado) =====
+        const idempotencyKey = xRequestId || `${topic}-${dataId}`;
+        
+        console.log(`🔄 [${webhookLogId}] Verificando idempotencia: ${idempotencyKey}`);
+        
+        if (replayProtectionCache.has(idempotencyKey)) {
+            console.warn(`⚠️ [${webhookLogId}] DUPLICADO: Webhook ya procesado, respondiendo 200`);
+            return res.status(200).json({ status: "already_processed" });
         }
 
-        const now = Date.now();
-        if (Math.abs(now - Number(timestamp)) > REPLAY_CACHE_TTL) {
-            console.error("❌ Timestamp del webhook fuera de rango.");
-            return res.status(400).send("Timestamp del webhook fuera de rango.");
-        }
+        replayProtectionCache.set(idempotencyKey, true);
+        setTimeout(() => replayProtectionCache.delete(idempotencyKey), REPLAY_CACHE_TTL);
+        
+        console.log(`✓ [${webhookLogId}] Idempotencia OK, procesando...\n`);
 
-        if (replayProtectionCache.has(webhookId)) {
-            console.error("❌ Webhook duplicado detectado.");
-            return res.status(409).send("Webhook duplicado detectado.");
-        }
-
-        replayProtectionCache.set(webhookId, true);
-        setTimeout(() => replayProtectionCache.delete(webhookId), REPLAY_CACHE_TTL);
-
-        const { topic, id, resource } = req.query;
-        console.log("Query Params:", req.query);
-        console.log("Cuerpo del Webhook:", req.body);
+        // ===== 3. PROCESAMIENTO DEL WEBHOOK =====
+        console.log(`📋 [${webhookLogId}] Datos recibidos:`);
+        console.log(`   - Topic: ${topic}`);
+        console.log(`   - Data ID: ${dataId}`);
+        console.log(`   - Query params:`, req.query);
+        console.log(`   - Body:`, JSON.stringify(req.body, null, 2));
 
         let merchantOrderId = null;
+        let shouldProcessOrder = false;
 
-        // Caso 1: payment
-        if (topic === "payment" || req.body.type === "payment") {
-            const paymentId = id || req.body.data?.id || req.body.resource;
-            console.log("🔍 ID de pago:", paymentId);
+        // CASO 1: Notificación de PAYMENT
+        if (topic === "payment") {
+            console.log(`\n💳 [${webhookLogId}] Procesando notificación de PAYMENT`);
+            
+            const paymentId = dataId;
+            console.log(`   - Payment ID: ${paymentId}`);
 
             const mpRes = await fetch(`https://api.mercadolibre.com/v1/payments/${paymentId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
+            if (!mpRes.ok) {
+                console.error(`❌ [${webhookLogId}] Error consultando payment API: ${mpRes.status}`);
+                return res.status(500).json({ error: "Failed to fetch payment" });
+            }
+
             const paymentData = await mpRes.json();
-            console.log("💳 Datos del pago:", paymentData);
+            console.log(`   - Status: ${paymentData.status}`);
+            console.log(`   - Status detail: ${paymentData.status_detail}`);
+            console.log(`   - External reference: ${paymentData.external_reference}`);
 
             if (paymentData.status === "approved") {
-                merchantOrderId = paymentData.order?.id || paymentData.order_id;
+                merchantOrderId = paymentData.order?.id;
+                shouldProcessOrder = true;
+                console.log(`   ✓ Pago aprobado, merchant_order: ${merchantOrderId}`);
+            } else {
+                console.log(`   ⏭️ Pago no aprobado (${paymentData.status}), ignorando`);
             }
         }
 
-        // Caso 2: merchant_order
-        if (topic === "merchant_order" || req.body.topic === "merchant_order") {
-            merchantOrderId = id || resource?.split("/").pop();
-            console.log("🔍 ID de merchant_order:", merchantOrderId);
+        // CASO 2: Notificación de MERCHANT_ORDER
+        if (topic === "merchant_order") {
+            console.log(`\n📦 [${webhookLogId}] Procesando notificación de MERCHANT_ORDER`);
+            
+            merchantOrderId = dataId;
+            console.log(`   - Merchant Order ID: ${merchantOrderId}`);
 
             const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${merchantOrderId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
+            if (!orderRes.ok) {
+                console.error(`❌ [${webhookLogId}] Error consultando merchant_order API: ${orderRes.status}`);
+                return res.status(500).json({ error: "Failed to fetch merchant_order" });
+            }
+
             const orderData = await orderRes.json();
-            console.log("📦 Datos de la orden:", orderData);
+            console.log(`   - Order status: ${orderData.order_status}`);
+            console.log(`   - Paid amount: ${orderData.paid_amount}`);
+            console.log(`   - Total amount: ${orderData.total_amount}`);
+            console.log(`   - External reference: ${orderData.external_reference}`);
 
             if (orderData.order_status === "paid" || orderData.paid_amount >= orderData.total_amount) {
+                shouldProcessOrder = true;
+                console.log(`   ✓ Orden pagada completamente`);
+                
+                // ===== 4. GARANTIZAR CREACIÓN DE DESCARGAS =====
                 const orderId = orderData.external_reference;
 
-                // 1. Obtener datos de la orden
-                const { data: order, error: orderError } = await supabaseAdmin.from("orders").select("customer_email").eq("id", orderId).single();
+                if (!orderId) {
+                    console.error(`❌ [${webhookLogId}] External reference faltante en merchant_order`);
+                    return res.status(400).json({ error: "Missing external_reference" });
+                }
+
+                console.log(`\n🔍 [${webhookLogId}] Procesando orden: ${orderId}`);
+
+                // Verificar si ya fue procesada (idempotencia a nivel de orden)
+                const { data: existingOrder, error: checkError } = await supabaseAdmin
+                    .from("orders")
+                    .select("status, mercado_pago_payment_id")
+                    .eq("id", orderId)
+                    .single();
+
+                if (checkError) {
+                    console.error(`❌ [${webhookLogId}] Error consultando orden en DB:`, checkError);
+                    return res.status(500).json({ error: "Database error" });
+                }
+
+                if (existingOrder.status === "paid" && existingOrder.mercado_pago_payment_id) {
+                    console.log(`⚠️ [${webhookLogId}] Orden ${orderId} ya procesada como 'paid', saltando`);
+                    return res.status(200).json({ status: "order_already_paid" });
+                }
+
+                console.log(`   - Orden encontrada, status actual: ${existingOrder.status}`);
+
+                // 1. Obtener email del cliente
+                const { data: order, error: orderError } = await supabaseAdmin
+                    .from("orders")
+                    .select("customer_email")
+                    .eq("id", orderId)
+                    .single();
 
                 if (orderError || !order) {
-                    console.error("❌ Error obteniendo orden:", orderError);
-                    return res.sendStatus(500);
+                    console.error(`❌ [${webhookLogId}] Error obteniendo datos de orden:`, orderError);
+                    return res.status(500).json({ error: "Order not found" });
                 }
 
-                // 2. Buscar fotos desde order_items
-                const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
+                console.log(`   - Email del cliente: ${order.customer_email}`);
 
-                if (itemsError || !orderItems.length) {
-                    console.error("❌ Error obteniendo order_items:", itemsError);
-                    return res.sendStatus(500);
+                // 2. Obtener items del pedido
+                const { data: orderItems, error: itemsError } = await supabaseAdmin
+                    .from("order_items")
+                    .select("photo_id")
+                    .eq(ORDER_FIELD_NAME, orderId);
+
+                if (itemsError || !orderItems || orderItems.length === 0) {
+                    console.error(`❌ [${webhookLogId}] Error obteniendo order_items:`, itemsError);
+                    return res.status(500).json({ error: "Order items not found" });
                 }
 
-                // 3. Obtener rutas de fotos desde photos
+                console.log(`   - Fotos en el pedido: ${orderItems.length}`);
+
+                // 3. Obtener rutas de fotos originales
                 const photoIds = orderItems.map((item) => item.photo_id);
-                const { data: photos, error: photosError } = await supabaseAdmin.from("photos").select("original_file_path").in("id", photoIds);
+                const { data: photos, error: photosError } = await supabaseAdmin
+                    .from("photos")
+                    .select("original_file_path")
+                    .in("id", photoIds);
 
-                if (photosError || !photos.length) {
-                    console.error("❌ Error obteniendo fotos:", photosError);
-                    return res.sendStatus(500);
+                if (photosError || !photos || photos.length === 0) {
+                    console.error(`❌ [${webhookLogId}] Error obteniendo fotos:`, photosError);
+                    return res.status(500).json({ error: "Photos not found" });
                 }
 
-                // 4. Generar URLs firmadas
-                const signedUrls = [];
-                for (const photo of photos) {
-                    const { data: signedData, error: signedError } = await supabaseAdmin.storage.from("fotos-originales").createSignedUrl(photo.original_file_path, 60 * 60 * 24 * 7);
-                    if (!signedError) signedUrls.push(signedData.signedUrl);
-                }
-                // 6. Actualizar estado a paid
+                console.log(`   - Fotos encontradas en storage: ${photos.length}`);
 
-                const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // ahora + 7 días
-                await supabaseAdmin
+                // 4. Actualizar orden a 'paid' CON TRANSACTION para garantizar atomicidad
+                const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                const paymentId = orderData.payments?.[0]?.id || null;
+
+                const { error: updateError } = await supabaseAdmin
                     .from("orders")
                     .update({
                         status: "paid",
-                        mercado_pago_payment_id: orderData.payments?.[0]?.id || null,
-                        download_expires_at: expiresAt.toISOString(), // guardamos en formato ISO
+                        mercado_pago_payment_id: paymentId,
+                        download_expires_at: expiresAt.toISOString(),
                     })
                     .eq("id", orderId);
 
-                // 7. Iniciar contador de descargas
-                await supabaseAdmin.from("descargas").insert({
-                    order_id: orderId,
-                    user_email: order.customer_email,
-                    contador: 0,
-                });
+                if (updateError) {
+                    console.error(`❌ [${webhookLogId}] Error actualizando orden:`, updateError);
+                    return res.status(500).json({ error: "Failed to update order" });
+                }
 
-                console.log(`✅ Orden ${orderId} actualizada a 'paid', contador iniciado y email enviado`);
+                console.log(`   ✓ Orden actualizada a 'paid'`);
+                console.log(`   - Payment ID: ${paymentId}`);
+                console.log(`   - Expira: ${expiresAt.toISOString()}`);
+
+                // 5. GARANTIZAR creación de registro de descargas (con UPSERT)
+                const { error: downloadError } = await supabaseAdmin
+                    .from("descargas")
+                    .upsert(
+                        {
+                            order_id: orderId,
+                            user_email: order.customer_email,
+                            contador: 0,
+                        },
+                        { onConflict: "order_id" }
+                    );
+
+                if (downloadError) {
+                    console.error(`❌ [${webhookLogId}] Error creando registro de descargas:`, downloadError);
+                    // NO retornamos error porque la orden ya fue marcada como paid
+                    console.warn(`⚠️ [${webhookLogId}] Orden marcada como paid pero sin registro de descargas`);
+                } else {
+                    console.log(`   ✓ Registro de descargas creado/actualizado (contador: 0)`);
+                }
+
+                // 6. Log final de éxito
+                const processingTime = Date.now() - webhookStartTime;
+                console.log(`\n${"=".repeat(80)}`);
+                console.log(`✅ [${webhookLogId}] WEBHOOK PROCESADO EXITOSAMENTE`);
+                console.log(`   - Orden: ${orderId}`);
+                console.log(`   - Email: ${order.customer_email}`);
+                console.log(`   - Fotos: ${photos.length}`);
+                console.log(`   - Tiempo de procesamiento: ${processingTime}ms`);
+                console.log(`${"=".repeat(80)}\n`);
+            } else {
+                console.log(`   ⏭️ Orden no completamente pagada, ignorando`);
             }
         }
 
-        res.sendStatus(200);
+        res.status(200).json({ status: "processed", webhook_id: webhookLogId });
+
     } catch (error) {
-        console.error("❌ Error en webhook:", error);
-        res.sendStatus(500);
+        const processingTime = Date.now() - webhookStartTime;
+        console.error(`\n${"=".repeat(80)}`);
+        console.error(`❌ [${webhookLogId}] ERROR EN WEBHOOK`);
+        console.error(`   - Error: ${error.message}`);
+        console.error(`   - Stack:`, error.stack);
+        console.error(`   - Tiempo hasta error: ${processingTime}ms`);
+        console.error(`${"=".repeat(80)}\n`);
+        
+        res.status(500).json({ 
+            error: "Internal server error", 
+            webhook_id: webhookLogId 
+        });
     }
 });
 
@@ -768,6 +939,75 @@ app.get("/orders", async (req, res) => {
     } catch (err) {
         console.error("Error al obtener pedidos:", err);
         res.status(500).json({ message: "Error interno al obtener pedidos" });
+    }
+});
+
+// Eliminar todos los pedidos (debe estar ANTES de /orders/:id)
+app.delete("/orders/all", async (req, res) => {
+    try {
+        // Primero obtener todos los pedidos
+        const { data: orders, error: fetchError } = await supabaseAdmin
+            .from("orders")
+            .select("id");
+
+        if (fetchError) throw fetchError;
+
+        // Si no hay pedidos, retornar
+        if (!orders || orders.length === 0) {
+            return res.json({ message: "No hay pedidos para eliminar" });
+        }
+
+        // Extraer todos los IDs de pedidos
+        const orderIds = orders.map(order => order.id);
+
+        // Eliminar todos los order_items asociados
+        const { error: itemsError } = await supabaseAdmin
+            .from("order_items")
+            .delete()
+            .in("order_id", orderIds);
+
+        if (itemsError) throw itemsError;
+
+        // Eliminar todos los pedidos
+        const { error: ordersError } = await supabaseAdmin
+            .from("orders")
+            .delete()
+            .in("id", orderIds);
+
+        if (ordersError) throw ordersError;
+
+        res.json({ message: `${orders.length} pedidos eliminados exitosamente` });
+    } catch (err) {
+        console.error("Error al eliminar todos los pedidos:", err);
+        res.status(500).json({ message: "Error al eliminar pedidos" });
+    }
+});
+
+// Eliminar un pedido específico
+app.delete("/orders/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Eliminar order_items asociados primero
+        const { error: itemsError } = await supabaseAdmin
+            .from("order_items")
+            .delete()
+            .eq("order_id", id);
+
+        if (itemsError) throw itemsError;
+
+        // Eliminar el pedido
+        const { error: orderError } = await supabaseAdmin
+            .from("orders")
+            .delete()
+            .eq("id", id);
+
+        if (orderError) throw orderError;
+
+        res.json({ message: "Pedido eliminado exitosamente" });
+    } catch (err) {
+        console.error("Error al eliminar pedido:", err);
+        res.status(500).json({ message: "Error al eliminar pedido" });
     }
 });
 
