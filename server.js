@@ -755,10 +755,16 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         console.log(`   - Tiempo request: ${new Date(requestTime).toISOString()}`);
         console.log(`   - Diferencia: ${(timeDiff / 1000).toFixed(2)}s`);
 
-        if (timeDiff > 5 * 60 * 1000) {
-            console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${5 * 60}s)`);
+        // En sandbox, Mercado Pago puede reenviar webhooks antiguos, permitimos ventana más amplia
+        const MAX_TIME_DIFF = process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000; // 5 min prod, 24h test
+        
+        if (timeDiff > MAX_TIME_DIFF) {
+            console.error(`❌ [${webhookLogId}] RECHAZADO: Timestamp fuera de rango (>${MAX_TIME_DIFF / 1000}s)`);
             return res.status(400).json({ error: "Request timestamp too old" });
         }
+        
+        console.log(`✅ [${webhookLogId}] Timestamp válido (diff < ${MAX_TIME_DIFF / 1000}s)`);
+
 
         // Validar firma HMAC
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
