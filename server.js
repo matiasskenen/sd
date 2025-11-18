@@ -229,7 +229,7 @@ app.use(helmet({
 // SEGURIDAD: CORS configurado con whitelist
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://localhost:5173']; // Valores por defecto para desarrollo
+    : ['https://school-photos-backend.onrender.com']; // Valor por defecto para producción
 
 const corsOptions = {
     origin: function (origin, callback) {
@@ -1096,7 +1096,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
             photos: photos.length,
             expires_at: expiresAt.toISOString(),
             message: "Pago simulado exitosamente. La orden está lista para descarga.",
-            success_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/success.html?order_id=${orderId}&customer_email=${existingOrder.customer_email}`
+            success_url: `${process.env.BACKEND_URL}/success.html?order_id=${orderId}&customer_email=${existingOrder.customer_email}`
         });
 
     } catch (error) {

@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`http://localhost:3000/upload-photos/${albumId}`, {
+            const response = await fetch(`${window.BACKEND_URL}/upload-photos/${albumId}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`

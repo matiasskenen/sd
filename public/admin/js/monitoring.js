@@ -1,6 +1,6 @@
 // monitoring.js - Panel de Monitoreo y Debugging
 
-const API_BASE = window.BACKEND_URL || 'http://localhost:3000';
+const API_BASE = window.BACKEND_URL;
 
 // Estado global
 let autoRefreshInterval = null;

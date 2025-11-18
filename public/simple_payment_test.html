@@ -126,7 +126,7 @@
                 statusMessage.classList.add('info');
                 statusMessage.textContent = 'Generando preferencia de pago...';
 
-                const response = await fetch('http://localhost:3000/create-payment-preference', {
+                const response = await fetch(`${window.BACKEND_URL}/create-payment-preference`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

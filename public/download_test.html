@@ -122,7 +122,7 @@
 
             // Construct the download URL
             // This URL points to your backend's new download route
-            const downloadUrl = `http://localhost:3000/download-photo/${photoId}/${orderId}/${customerEmail}`;
+            const downloadUrl = `${window.BACKEND_URL}/download-photo/${photoId}/${orderId}/${customerEmail}`;
 
             statusMessage.classList.remove('hidden');
             statusMessage.classList.add('info');
