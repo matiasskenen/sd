@@ -1,6 +1,3 @@
-// Obtener BACKEND_URL dinámicamente
-let BACKEND_URL = window.BACKEND_URL || "http://localhost:3000";
-
 const purchasedPhotosContainer = document.getElementById("purchased-photos-container");
 const statusMessageDiv = document.getElementById("status-message");
 const loadingPhotosDiv = document.getElementById("loading-photos");

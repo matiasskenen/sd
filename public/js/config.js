@@ -1,1 +1,1 @@
-const BACKEND_URL = "https://school-photos-backend.onrender.com";
+window.BACKEND_URL = "https://school-photos-backend.onrender.com";
