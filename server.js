@@ -1,7 +1,7 @@
 console.log("=== ENTORNO DETECTADO ===");
 console.log("process.env.RENDER:", process.env.RENDER ? "Render" : "Local");
 console.log("Webhook secret (masked):", process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(0, 4) + "****" + process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(-4));
-console.log("==========================");
+console.log("===========================");
 
 // server.js
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
