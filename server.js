@@ -758,7 +758,13 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         const computedHash = hmac.digest("hex");
 
         const signatureMatch = computedHash === hash;
-        console.log(`[${timestamp}] 🔑 Validación de firma:`);
+        
+        console.log(`[${timestamp}] 🔑 Validación de firma HMAC:`);
+        console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + '...' : 'UNDEFINED'}`);
+        console.log(`   SECRET (length): ${secret ? secret.length : 0}`);
+        console.log(`   Manifest: ${manifest}`);
+        console.log(`   Hash recibido: ${hash}`);
+        console.log(`   Hash calculado: ${computedHash}`);
         console.log(`   ${signatureMatch ? '✅ VÁLIDA' : '❌ INVÁLIDA'}`);
 
         if (!signatureMatch) {
