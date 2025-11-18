@@ -1,3 +1,8 @@
+console.log("=== ENTORNO DETECTADO ===");
+console.log("process.env.RENDER:", process.env.RENDER ? "Render" : "Local");
+console.log("Webhook secret (masked):", process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(0, 4) + "****" + process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(-4));
+console.log("==========================");
+
 // server.js
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
@@ -19,17 +24,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy - CRÍTICO para Render/Heroku/producción detrás de reverse proxy
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // --- Sistema de Logging y Métricas ---
 const LOG_LEVELS = {
     DEBUG: 0,
     INFO: 1,
     WARN: 2,
-    ERROR: 3
+    ERROR: 3,
 };
 
-let currentLogLevel = process.env.LOG_LEVEL || 'INFO';
+let currentLogLevel = process.env.LOG_LEVEL || "INFO";
 let consoleLoggingEnabled = true;
 
 // Buffer circular para logs (últimos 1000)
@@ -42,24 +47,24 @@ const metrics = {
     requests: {
         total: 0,
         byEndpoint: {},
-        byStatusCode: {}
+        byStatusCode: {},
     },
     errors: {
         total: 0,
-        byType: {}
+        byType: {},
     },
     photos: {
         uploaded: 0,
-        downloaded: 0
+        downloaded: 0,
     },
     albums: {
-        created: 0
+        created: 0,
     },
     orders: {
         created: 0,
-        paid: 0
+        paid: 0,
     },
-    responseTimes: []
+    responseTimes: [],
 };
 
 // Logger centralizado
@@ -74,7 +79,7 @@ const logger = {
             timestamp,
             level,
             message,
-            metadata: sanitizeMetadata(metadata)
+            metadata: sanitizeMetadata(metadata),
         };
 
         // Agregar al buffer (circular)
@@ -85,54 +90,54 @@ const logger = {
 
         // Log a consola si está habilitado
         if (consoleLoggingEnabled) {
-            const emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌' }[level] || '';
-            console.log(`${emoji} [${timestamp}] [${level}] ${message}`, metadata && Object.keys(metadata).length > 0 ? metadata : '');
+            const emoji = { DEBUG: "🔍", INFO: "ℹ️", WARN: "⚠️", ERROR: "❌" }[level] || "";
+            console.log(`${emoji} [${timestamp}] [${level}] ${message}`, metadata && Object.keys(metadata).length > 0 ? metadata : "");
         }
     },
-    debug: (msg, meta) => logger._log('DEBUG', msg, meta),
-    info: (msg, meta) => logger._log('INFO', msg, meta),
-    warn: (msg, meta) => logger._log('WARN', msg, meta),
-    error: (msg, meta) => logger._log('ERROR', msg, meta)
+    debug: (msg, meta) => logger._log("DEBUG", msg, meta),
+    info: (msg, meta) => logger._log("INFO", msg, meta),
+    warn: (msg, meta) => logger._log("WARN", msg, meta),
+    error: (msg, meta) => logger._log("ERROR", msg, meta),
 };
 
 // Sanitizar metadata para evitar loggear tokens/passwords
 function sanitizeMetadata(metadata) {
-    if (!metadata || typeof metadata !== 'object') return metadata;
-    
+    if (!metadata || typeof metadata !== "object") return metadata;
+
     const sanitized = { ...metadata };
-    const sensitiveKeys = ['password', 'token', 'authorization', 'secret', 'key', 'access_token'];
-    
+    const sensitiveKeys = ["password", "token", "authorization", "secret", "key", "access_token"];
+
     for (const key in sanitized) {
-        if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
-            sanitized[key] = '***REDACTED***';
+        if (sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive))) {
+            sanitized[key] = "***REDACTED***";
         }
     }
-    
+
     return sanitized;
 }
 
 // Middleware para tracking de métricas
 app.use((req, res, next) => {
     const startTime = Date.now();
-    
+
     metrics.requests.total++;
     metrics.requests.byEndpoint[req.path] = (metrics.requests.byEndpoint[req.path] || 0) + 1;
-    
-    res.on('finish', () => {
+
+    res.on("finish", () => {
         const duration = Date.now() - startTime;
         metrics.responseTimes.push(duration);
         if (metrics.responseTimes.length > 100) {
             metrics.responseTimes.shift();
         }
-        
+
         metrics.requests.byStatusCode[res.statusCode] = (metrics.requests.byStatusCode[res.statusCode] || 0) + 1;
-        
+
         logger.debug(`${req.method} ${req.path}`, {
             statusCode: res.statusCode,
-            duration: `${duration}ms`
+            duration: `${duration}ms`,
         });
     });
-    
+
     next();
 });
 
@@ -220,31 +225,31 @@ async function tryGetPaymentWithRetry(paymentId, retries = 3) {
 
 // --- Middlewares ---
 // SEGURIDAD: Helmet para headers HTTP seguros
-app.use(helmet({
-    contentSecurityPolicy: false, // Deshabilitado porque usamos CDN de Tailwind
-    crossOriginEmbedderPolicy: false, // Necesario para imágenes de Supabase
-    hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000 } : false
-}));
+app.use(
+    helmet({
+        contentSecurityPolicy: false, // Deshabilitado porque usamos CDN de Tailwind
+        crossOriginEmbedderPolicy: false, // Necesario para imágenes de Supabase
+        hsts: process.env.NODE_ENV === "production" ? { maxAge: 31536000 } : false,
+    })
+);
 
 // SEGURIDAD: CORS configurado con whitelist
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['https://school-photos-backend.onrender.com']; // Valor por defecto para producción
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : ["https://school-photos-backend.onrender.com"]; // Valor por defecto para producción
 
 const corsOptions = {
     origin: function (origin, callback) {
         // Permitir requests sin origin (como mobile apps, Postman, curl)
         if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === "development") {
             callback(null, true);
         } else {
-            logger.warn('CORS bloqueado', { origin });
-            callback(new Error('No permitido por CORS'));
+            logger.warn("CORS bloqueado", { origin });
+            callback(new Error("No permitido por CORS"));
         }
     },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
@@ -253,61 +258,61 @@ app.use(cors(corsOptions));
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 100, // Límite de 100 requests por ventana
-    message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde.',
+    message: "Demasiadas peticiones desde esta IP, por favor intenta más tarde.",
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-        logger.warn('Rate limit excedido', { 
-            ip: req.ip, 
-            path: req.path 
+        logger.warn("Rate limit excedido", {
+            ip: req.ip,
+            path: req.path,
         });
-        res.status(429).json({ 
-            error: 'Demasiadas peticiones, por favor intenta más tarde.',
-            retryAfter: '15 minutos'
+        res.status(429).json({
+            error: "Demasiadas peticiones, por favor intenta más tarde.",
+            retryAfter: "15 minutos",
         });
-    }
+    },
 });
 
 // SEGURIDAD: Rate limiting estricto para login
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 5, // Solo 5 intentos de login
-    message: 'Demasiados intentos de login, por favor intenta más tarde.',
+    message: "Demasiados intentos de login, por favor intenta más tarde.",
     skipSuccessfulRequests: false, // Contar todos los intentos
     handler: (req, res) => {
-        logger.warn('Rate limit de auth excedido', { 
+        logger.warn("Rate limit de auth excedido", {
             ip: req.ip,
-            email: req.body?.email 
+            email: req.body?.email,
         });
-        res.status(429).json({ 
-            error: 'Demasiados intentos de login. Por seguridad, espera 15 minutos.',
-            retryAfter: '15 minutos'
+        res.status(429).json({
+            error: "Demasiados intentos de login. Por seguridad, espera 15 minutos.",
+            retryAfter: "15 minutos",
         });
-    }
+    },
 });
 
 // SEGURIDAD: Rate limiting para creación de recursos
 const createLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hora
     max: 20, // 20 creaciones por hora
-    message: 'Límite de creación alcanzado.',
+    message: "Límite de creación alcanzado.",
     handler: (req, res) => {
-        logger.warn('Rate limit de creación excedido', { 
+        logger.warn("Rate limit de creación excedido", {
             ip: req.ip,
-            path: req.path 
+            path: req.path,
         });
-        res.status(429).json({ 
-            error: 'Has alcanzado el límite de creaciones por hora.',
-            retryAfter: '1 hora'
+        res.status(429).json({
+            error: "Has alcanzado el límite de creaciones por hora.",
+            retryAfter: "1 hora",
         });
-    }
+    },
 });
 
 // SEGURIDAD: Rate limiting para webhooks (más permisivo)
 const webhookLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: 30, // 30 requests por minuto
-    message: 'Webhook rate limit excedido'
+    message: "Webhook rate limit excedido",
 });
 
 // Aplicar rate limiting general a todas las rutas
@@ -400,23 +405,23 @@ app.post("/albums", createLimiter, async (req, res) => {
     // Precio por defecto si no se especifica
     const finalPrice = price_per_photo ? Number(price_per_photo) : 15.0;
 
-    logger.info('Creando nuevo álbum', { name, event_date, price_per_photo: finalPrice });
-    
+    logger.info("Creando nuevo álbum", { name, event_date, price_per_photo: finalPrice });
+
     try {
         const { data: album, error } = await supabaseAdmin
             .from("albums")
-            .insert({ 
-                name, 
-                event_date, 
+            .insert({
+                name,
+                event_date,
                 description: description || null,
                 price_per_photo: finalPrice,
-                photographer_user_id 
+                photographer_user_id,
             })
             .select()
             .single();
 
         if (error) {
-            logger.error('Error al crear álbum', { error: error.message });
+            logger.error("Error al crear álbum", { error: error.message });
             return res.status(500).json({ message: `Error al crear álbum: ${error.message}` });
         }
         res.status(201).json({ message: "Álbum creado exitosamente.", album });
@@ -451,7 +456,7 @@ app.get("/albums/:albumId/photos", async (req, res) => {
             public_watermarked_url: `${supabaseUrl}/storage/v1/object/public/watermarked-photos/${photo.watermarked_file_path}`,
         }));
 
-        logger.info('Fotos obtenidas para galería', { albumId, count: photos.length });
+        logger.info("Fotos obtenidas para galería", { albumId, count: photos.length });
 
         res.status(200).json({
             message: `Fotos obtenidas exitosamente para el álbum ${albumId}.`,
@@ -581,27 +586,26 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
 
         // Precio del álbum (con fallback a 15.0)
         albumPrice = album.price_per_photo || 15.0;
-        logger.info('Subida de fotos iniciada', { albumId, albumPrice, photographerId });
-
+        logger.info("Subida de fotos iniciada", { albumId, albumPrice, photographerId });
     } catch (dbError) {
         console.error("Error de base de datos al verificar álbum:", dbError);
         return res.status(500).json({ message: "Error interno del servidor al verificar el álbum." });
     }
 
     if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ message: "No se subieron archivos." });
-        }
+        return res.status(400).json({ message: "No se subieron archivos." });
+    }
 
-        const watermarkedPhotosPath = path.resolve(__dirname, "assets", "watermark.png");
-        console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
-        if (!fs.existsSync(watermarkedPhotosPath)) {
-            console.error(`Error: Archivo de marca de agua no encontrado en ${watermarkedPhotosPath}`);
-            return res.status(500).json({ message: "Error interno: Archivo de marca de agua no encontrado." });
-        }
+    const watermarkedPhotosPath = path.resolve(__dirname, "assets", "watermark.png");
+    console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
+    if (!fs.existsSync(watermarkedPhotosPath)) {
+        console.error(`Error: Archivo de marca de agua no encontrado en ${watermarkedPhotosPath}`);
+        return res.status(500).json({ message: "Error interno: Archivo de marca de agua no encontrado." });
+    }
 
-        const results = [];
+    const results = [];
 
-        for (const file of req.files) {
+    for (const file of req.files) {
         try {
             const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${path.extname(file.originalname)}`;
             const originalFilePath = `albums/${albumId}/original/${uniqueFileName}`;
@@ -704,9 +708,9 @@ const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutos TTL
 // --- WEBHOOK DE MERCADO PAGO (CON RATE LIMITING) ---
 app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res) => {
     const now = new Date();
-    const timestamp = now.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+    const timestamp = now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
     const webhookId = `WH-${Date.now()}`;
-    
+
     console.log(`\n${"=".repeat(80)}`);
     console.log(`[${timestamp}] 📩 WEBHOOK RECIBIDO`);
     console.log(`ID: ${webhookId}`);
@@ -718,7 +722,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         const xRequestId = req.headers["x-request-id"];
         const dataId = req.query.id || req.body.data?.id;
         const topic = req.query.topic || req.body.type;
-        
+
         console.log(`[${timestamp}] 📋 Datos básicos:`);
         console.log(`   Topic: ${topic}`);
         console.log(`   Data ID: ${dataId}`);
@@ -734,7 +738,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         // Parsear signature
         const parts = xSignature.split(",");
         let ts, hash;
-        parts.forEach(part => {
+        parts.forEach((part) => {
             const [key, value] = part.split("=");
             if (key && value) {
                 if (key.trim() === "ts") ts = value.trim();
@@ -747,25 +751,24 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             return res.status(400).json({ error: "Invalid signature format" });
         }
 
-
         // Validar firma HMAC
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
         const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-        
+
         const crypto = require("crypto");
         const hmac = crypto.createHmac("sha256", secret);
         hmac.update(manifest);
         const computedHash = hmac.digest("hex");
 
         const signatureMatch = computedHash === hash;
-        
+
         console.log(`[${timestamp}] 🔑 Validación de firma HMAC:`);
-        console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + '...' : 'UNDEFINED'}`);
+        console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + "..." : "UNDEFINED"}`);
         console.log(`   SECRET (length): ${secret ? secret.length : 0}`);
         console.log(`   Manifest: ${manifest}`);
         console.log(`   Hash recibido: ${hash}`);
         console.log(`   Hash calculado: ${computedHash}`);
-        console.log(`   ${signatureMatch ? '✅ VÁLIDA' : '❌ INVÁLIDA'}`);
+        console.log(`   ${signatureMatch ? "✅ VÁLIDA" : "❌ INVÁLIDA"}`);
 
         if (!signatureMatch) {
             console.log(`[${timestamp}] ❌ RECHAZADO: Firma no coincide`);
@@ -783,16 +786,16 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         setTimeout(() => replayProtectionCache.delete(idempotencyKey), REPLAY_CACHE_TTL);
 
         // ===== PROCESAMIENTO SEGÚN TIPO =====
-        
+
         if (topic === "payment") {
             console.log(`\n[${timestamp}] 💳 PAYMENT WEBHOOK`);
             console.log(`   Payment ID: ${dataId}`);
-            
+
             // Esperar 3 segundos antes de consultar (MP tarda en crear el payment)
             console.log(`   ⏳ Esperando 3s antes de consultar API...`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            const consultaTime = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+
+            const consultaTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
             console.log(`   [${consultaTime}] 🔍 Consultando payment en API de MP...`);
 
             const mpRes = await fetch(`https://api.mercadolibre.com/v1/payments/${dataId}`, {
@@ -839,7 +842,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
             const orderData = await orderRes.json();
             await procesarOrden(orderData, timestamp);
-            
+
             return res.status(200).json({ status: "processed" });
         }
 
@@ -859,14 +862,13 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
             const orderData = await orderRes.json();
             await procesarOrden(orderData, timestamp);
-            
+
             return res.status(200).json({ status: "processed" });
         }
 
         res.status(200).json({ status: "ignored_topic" });
-
     } catch (error) {
-        const errorTime = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const errorTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
         console.log(`\n[${errorTime}] ❌ ERROR EN WEBHOOK`);
         console.log(`Error: ${error.message}`);
         console.log(`Stack:`, error.stack);
@@ -896,11 +898,7 @@ async function procesarOrden(orderData, timestamp) {
     console.log(`\n[${timestamp}] 🔍 PROCESANDO ORDEN: ${orderId}`);
 
     // Verificar si ya fue procesada
-    const { data: existingOrder, error: checkError } = await supabaseAdmin
-        .from("orders")
-        .select("status, mercado_pago_payment_id")
-        .eq("id", orderId)
-        .single();
+    const { data: existingOrder, error: checkError } = await supabaseAdmin.from("orders").select("status, mercado_pago_payment_id").eq("id", orderId).single();
 
     if (checkError) {
         console.log(`   ❌ Error consultando orden en DB:`, checkError.message);
@@ -915,11 +913,7 @@ async function procesarOrden(orderData, timestamp) {
     }
 
     // Obtener email del cliente
-    const { data: order, error: orderError } = await supabaseAdmin
-        .from("orders")
-        .select("customer_email")
-        .eq("id", orderId)
-        .single();
+    const { data: order, error: orderError } = await supabaseAdmin.from("orders").select("customer_email").eq("id", orderId).single();
 
     if (orderError || !order) {
         console.log(`   ❌ Error obteniendo email:`, orderError?.message);
@@ -929,10 +923,7 @@ async function procesarOrden(orderData, timestamp) {
     console.log(`   Email: ${order.customer_email}`);
 
     // Obtener items del pedido
-    const { data: orderItems, error: itemsError } = await supabaseAdmin
-        .from("order_items")
-        .select("photo_id")
-        .eq(ORDER_FIELD_NAME, orderId);
+    const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
 
     if (itemsError || !orderItems || orderItems.length === 0) {
         console.log(`   ❌ Error obteniendo items:`, itemsError?.message);
@@ -961,19 +952,17 @@ async function procesarOrden(orderData, timestamp) {
 
     console.log(`   ✅ Orden actualizada a 'paid'`);
     console.log(`   Payment ID: ${paymentId}`);
-    console.log(`   Expira: ${expiresAt.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`);
+    console.log(`   Expira: ${expiresAt.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`);
 
     // Crear registro de descargas
-    const { error: downloadError } = await supabaseAdmin
-        .from("descargas")
-        .upsert(
-            {
-                order_id: orderId,
-                user_email: order.customer_email,
-                contador: 0,
-            },
-            { onConflict: "order_id" }
-        );
+    const { error: downloadError } = await supabaseAdmin.from("descargas").upsert(
+        {
+            order_id: orderId,
+            user_email: order.customer_email,
+            contador: 0,
+        },
+        { onConflict: "order_id" }
+    );
 
     if (downloadError) {
         console.log(`   ⚠️ Error creando registro de descargas:`, downloadError.message);
@@ -987,7 +976,7 @@ async function procesarOrden(orderData, timestamp) {
 // ===== ENDPOINT DE TESTING: Simular Pago Aprobado =====
 app.post("/simulate-payment", express.json(), async (req, res) => {
     console.log("\n🧪 ===== SIMULACIÓN DE PAGO (SOLO TESTING) =====");
-    
+
     try {
         const { orderId } = req.body;
 
@@ -998,11 +987,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
         console.log(`🔍 Simulando pago para orden: ${orderId}`);
 
         // 1. Verificar que la orden existe
-        const { data: existingOrder, error: checkError } = await supabaseAdmin
-            .from("orders")
-            .select("status, customer_email")
-            .eq("id", orderId)
-            .single();
+        const { data: existingOrder, error: checkError } = await supabaseAdmin.from("orders").select("status, customer_email").eq("id", orderId).single();
 
         if (checkError || !existingOrder) {
             console.error("❌ Orden no encontrada:", checkError);
@@ -1011,9 +996,9 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
 
         if (existingOrder.status === "paid") {
             console.log("⚠️ Orden ya está marcada como 'paid'");
-            return res.status(200).json({ 
-                status: "already_paid", 
-                message: "La orden ya está pagada" 
+            return res.status(200).json({
+                status: "already_paid",
+                message: "La orden ya está pagada",
             });
         }
 
@@ -1021,10 +1006,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
         console.log(`   - Email: ${existingOrder.customer_email}`);
 
         // 2. Obtener items del pedido
-        const { data: orderItems, error: itemsError } = await supabaseAdmin
-            .from("order_items")
-            .select("photo_id")
-            .eq(ORDER_FIELD_NAME, orderId);
+        const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
 
         if (itemsError || !orderItems || orderItems.length === 0) {
             console.error("❌ No se encontraron items para esta orden:", itemsError);
@@ -1035,10 +1017,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
 
         // 3. Obtener rutas de fotos originales
         const photoIds = orderItems.map((item) => item.photo_id);
-        const { data: photos, error: photosError } = await supabaseAdmin
-            .from("photos")
-            .select("original_file_path")
-            .in("id", photoIds);
+        const { data: photos, error: photosError } = await supabaseAdmin.from("photos").select("original_file_path").in("id", photoIds);
 
         if (photosError || !photos || photos.length === 0) {
             console.error("❌ No se encontraron fotos:", photosError);
@@ -1070,16 +1049,14 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
         console.log(`   - Expira: ${expiresAt.toISOString()}`);
 
         // 5. Crear registro de descargas
-        const { error: downloadError } = await supabaseAdmin
-            .from("descargas")
-            .upsert(
-                {
-                    order_id: orderId,
-                    user_email: existingOrder.customer_email,
-                    contador: 0,
-                },
-                { onConflict: "order_id" }
-            );
+        const { error: downloadError } = await supabaseAdmin.from("descargas").upsert(
+            {
+                order_id: orderId,
+                user_email: existingOrder.customer_email,
+                contador: 0,
+            },
+            { onConflict: "order_id" }
+        );
 
         if (downloadError) {
             console.error("❌ Error creando registro de descargas:", downloadError);
@@ -1089,21 +1066,20 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
 
         console.log("\n✅ ===== SIMULACIÓN COMPLETADA =====\n");
 
-        res.status(200).json({ 
+        res.status(200).json({
             status: "simulated_success",
             orderId,
             customer_email: existingOrder.customer_email,
             photos: photos.length,
             expires_at: expiresAt.toISOString(),
             message: "Pago simulado exitosamente. La orden está lista para descarga.",
-            success_url: `${process.env.BACKEND_URL}/success.html?order_id=${orderId}&customer_email=${existingOrder.customer_email}`
+            success_url: `${process.env.BACKEND_URL}/success.html?order_id=${orderId}&customer_email=${existingOrder.customer_email}`,
         });
-
     } catch (error) {
         console.error("\n❌ Error en simulación de pago:", error);
-        res.status(500).json({ 
-            error: "Internal server error", 
-            details: error.message 
+        res.status(500).json({
+            error: "Internal server error",
+            details: error.message,
         });
     }
 });
@@ -1281,9 +1257,7 @@ app.get("/orders", async (req, res) => {
 app.delete("/orders/all", async (req, res) => {
     try {
         // Primero obtener todos los pedidos
-        const { data: orders, error: fetchError } = await supabaseAdmin
-            .from("orders")
-            .select("id");
+        const { data: orders, error: fetchError } = await supabaseAdmin.from("orders").select("id");
 
         if (fetchError) throw fetchError;
 
@@ -1293,21 +1267,15 @@ app.delete("/orders/all", async (req, res) => {
         }
 
         // Extraer todos los IDs de pedidos
-        const orderIds = orders.map(order => order.id);
+        const orderIds = orders.map((order) => order.id);
 
         // Eliminar todos los order_items asociados
-        const { error: itemsError } = await supabaseAdmin
-            .from("order_items")
-            .delete()
-            .in("order_id", orderIds);
+        const { error: itemsError } = await supabaseAdmin.from("order_items").delete().in("order_id", orderIds);
 
         if (itemsError) throw itemsError;
 
         // Eliminar todos los pedidos
-        const { error: ordersError } = await supabaseAdmin
-            .from("orders")
-            .delete()
-            .in("id", orderIds);
+        const { error: ordersError } = await supabaseAdmin.from("orders").delete().in("id", orderIds);
 
         if (ordersError) throw ordersError;
 
@@ -1324,18 +1292,12 @@ app.delete("/orders/:id", async (req, res) => {
         const { id } = req.params;
 
         // Eliminar order_items asociados primero
-        const { error: itemsError } = await supabaseAdmin
-            .from("order_items")
-            .delete()
-            .eq("order_id", id);
+        const { error: itemsError } = await supabaseAdmin.from("order_items").delete().eq("order_id", id);
 
         if (itemsError) throw itemsError;
 
         // Eliminar el pedido
-        const { error: orderError } = await supabaseAdmin
-            .from("orders")
-            .delete()
-            .eq("id", id);
+        const { error: orderError } = await supabaseAdmin.from("orders").delete().eq("id", id);
 
         if (orderError) throw orderError;
 
@@ -1444,13 +1406,13 @@ app.put("/albums/:id", async (req, res) => {
         // Solo actualizar precio si se proporciona
         if (price_per_photo !== undefined) {
             updateData.price_per_photo = Number(price_per_photo);
-            
+
             // Actualizar el precio de todas las fotos existentes en este álbum
             const { error: photosError } = await supabaseAdmin
                 .from("photos")
                 .update({ price: Number(price_per_photo) })
                 .eq("album_id", id);
-            
+
             if (photosError) {
                 console.error("Error al actualizar precios de fotos:", photosError);
             } else {
@@ -1458,12 +1420,7 @@ app.put("/albums/:id", async (req, res) => {
             }
         }
 
-        const { data, error } = await supabaseAdmin
-            .from("albums")
-            .update(updateData)
-            .eq("id", id)
-            .select()
-            .single();
+        const { data, error } = await supabaseAdmin.from("albums").update(updateData).eq("id", id).select().single();
 
         if (error) throw error;
 
@@ -1540,20 +1497,20 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
 // Obtener logs del buffer
 app.get("/api/monitoring/logs", (req, res) => {
     const { level, limit = 100 } = req.query;
-    
+
     let logs = [...logBuffer];
-    
+
     // Filtrar por nivel si se especifica
-    if (level && level.toUpperCase() !== 'ALL') {
-        logs = logs.filter(log => log.level === level.toUpperCase());
+    if (level && level.toUpperCase() !== "ALL") {
+        logs = logs.filter((log) => log.level === level.toUpperCase());
     }
-    
+
     // Limitar cantidad
     logs = logs.slice(-parseInt(limit));
-    
+
     res.json({
         total: logs.length,
-        logs: logs.reverse() // Más recientes primero
+        logs: logs.reverse(), // Más recientes primero
     });
 });
 
@@ -1561,21 +1518,21 @@ app.get("/api/monitoring/logs", (req, res) => {
 app.delete("/api/monitoring/logs", (req, res) => {
     const count = logBuffer.length;
     logBuffer.length = 0;
-    logger.info('Logs limpiados manualmente', { count });
+    logger.info("Logs limpiados manualmente", { count });
     res.json({ message: `${count} logs eliminados` });
 });
 
 // Configurar nivel de log
 app.post("/api/monitoring/log-level", (req, res) => {
     const { level } = req.body;
-    
+
     if (!LOG_LEVELS[level.toUpperCase()]) {
-        return res.status(400).json({ error: 'Nivel inválido. Usa: DEBUG, INFO, WARN, ERROR' });
+        return res.status(400).json({ error: "Nivel inválido. Usa: DEBUG, INFO, WARN, ERROR" });
     }
-    
+
     currentLogLevel = level.toUpperCase();
     logger.info(`Nivel de log cambiado a ${currentLogLevel}`);
-    
+
     res.json({ level: currentLogLevel });
 });
 
@@ -1583,21 +1540,19 @@ app.post("/api/monitoring/log-level", (req, res) => {
 app.post("/api/monitoring/console-logging", (req, res) => {
     const { enabled } = req.body;
     consoleLoggingEnabled = enabled;
-    logger.info(`Console logging ${enabled ? 'habilitado' : 'deshabilitado'}`);
+    logger.info(`Console logging ${enabled ? "habilitado" : "deshabilitado"}`);
     res.json({ consoleLoggingEnabled });
 });
 
 // Obtener métricas
 app.get("/api/monitoring/metrics", (req, res) => {
     const uptime = Date.now() - metrics.startTime;
-    const avgResponseTime = metrics.responseTimes.length > 0
-        ? metrics.responseTimes.reduce((a, b) => a + b, 0) / metrics.responseTimes.length
-        : 0;
-    
+    const avgResponseTime = metrics.responseTimes.length > 0 ? metrics.responseTimes.reduce((a, b) => a + b, 0) / metrics.responseTimes.length : 0;
+
     res.json({
         uptime: {
             ms: uptime,
-            formatted: formatUptime(uptime)
+            formatted: formatUptime(uptime),
         },
         requests: metrics.requests,
         errors: metrics.errors,
@@ -1607,17 +1562,17 @@ app.get("/api/monitoring/metrics", (req, res) => {
         performance: {
             avgResponseTime: Math.round(avgResponseTime),
             minResponseTime: Math.min(...metrics.responseTimes),
-            maxResponseTime: Math.max(...metrics.responseTimes)
+            maxResponseTime: Math.max(...metrics.responseTimes),
         },
         system: {
             nodeVersion: process.version,
             platform: process.platform,
-            memory: process.memoryUsage()
+            memory: process.memoryUsage(),
         },
         config: {
             logLevel: currentLogLevel,
-            consoleLoggingEnabled
-        }
+            consoleLoggingEnabled,
+        },
     });
 });
 
@@ -1629,41 +1584,41 @@ app.delete("/api/monitoring/metrics", (req, res) => {
     metrics.albums = { created: 0 };
     metrics.orders = { created: 0, paid: 0 };
     metrics.responseTimes = [];
-    
-    logger.info('Métricas reseteadas');
-    res.json({ message: 'Métricas reseteadas' });
+
+    logger.info("Métricas reseteadas");
+    res.json({ message: "Métricas reseteadas" });
 });
 
 // Health check
 app.get("/api/monitoring/health", async (req, res) => {
     const checks = {
-        server: 'ok',
-        database: 'checking',
-        storage: 'checking'
+        server: "ok",
+        database: "checking",
+        storage: "checking",
     };
-    
+
     try {
         // Test database
-        const { error: dbError } = await supabaseAdmin.from('albums').select('id').limit(1);
-        checks.database = dbError ? 'error' : 'ok';
-        
+        const { error: dbError } = await supabaseAdmin.from("albums").select("id").limit(1);
+        checks.database = dbError ? "error" : "ok";
+
         // Test storage
         const { data: buckets, error: storageError } = await supabaseAdmin.storage.listBuckets();
-        checks.storage = storageError ? 'error' : 'ok';
-        
-        const allOk = Object.values(checks).every(status => status === 'ok');
-        
+        checks.storage = storageError ? "error" : "ok";
+
+        const allOk = Object.values(checks).every((status) => status === "ok");
+
         res.status(allOk ? 200 : 503).json({
-            status: allOk ? 'healthy' : 'degraded',
+            status: allOk ? "healthy" : "degraded",
             checks,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         });
     } catch (err) {
-        logger.error('Health check failed', { error: err.message });
+        logger.error("Health check failed", { error: err.message });
         res.status(503).json({
-            status: 'unhealthy',
+            status: "unhealthy",
             checks,
-            error: err.message
+            error: err.message,
         });
     }
 });
@@ -1675,26 +1630,22 @@ app.post("/api/testing/create-test-album", async (req, res) => {
     try {
         const testAlbum = {
             name: `Test Album ${Date.now()}`,
-            event_date: new Date().toISOString().split('T')[0],
-            description: 'Álbum de prueba generado automáticamente',
+            event_date: new Date().toISOString().split("T")[0],
+            description: "Álbum de prueba generado automáticamente",
             price_per_photo: 50,
-            photographer_user_id: '65805569-2e32-46a0-97c5-c52e31e02866'
+            photographer_user_id: "65805569-2e32-46a0-97c5-c52e31e02866",
         };
-        
-        const { data, error } = await supabaseAdmin
-            .from('albums')
-            .insert(testAlbum)
-            .select()
-            .single();
-        
+
+        const { data, error } = await supabaseAdmin.from("albums").insert(testAlbum).select().single();
+
         if (error) throw error;
-        
+
         metrics.albums.created++;
-        logger.info('Test album created', { albumId: data.id });
-        
+        logger.info("Test album created", { albumId: data.id });
+
         res.json({ success: true, album: data });
     } catch (err) {
-        logger.error('Failed to create test album', { error: err.message });
+        logger.error("Failed to create test album", { error: err.message });
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -1703,54 +1654,51 @@ app.post("/api/testing/create-test-album", async (req, res) => {
 app.delete("/api/testing/cleanup-test-data", async (req, res) => {
     try {
         // Eliminar álbumes de prueba (que contengan "Test" en el nombre)
-        const { data: testAlbums } = await supabaseAdmin
-            .from('albums')
-            .select('id')
-            .ilike('name', '%test%');
-        
+        const { data: testAlbums } = await supabaseAdmin.from("albums").select("id").ilike("name", "%test%");
+
         if (testAlbums && testAlbums.length > 0) {
-            const albumIds = testAlbums.map(a => a.id);
-            
+            const albumIds = testAlbums.map((a) => a.id);
+
             // Eliminar fotos de álbumes de prueba
-            await supabaseAdmin.from('photos').delete().in('album_id', albumIds);
-            
+            await supabaseAdmin.from("photos").delete().in("album_id", albumIds);
+
             // Eliminar álbumes
-            await supabaseAdmin.from('albums').delete().in('id', albumIds);
+            await supabaseAdmin.from("albums").delete().in("id", albumIds);
         }
-        
-        logger.info('Test data cleaned up', { albumsDeleted: testAlbums?.length || 0 });
-        
-        res.json({ 
-            success: true, 
+
+        logger.info("Test data cleaned up", { albumsDeleted: testAlbums?.length || 0 });
+
+        res.json({
+            success: true,
             deleted: {
-                albums: testAlbums?.length || 0
-            }
+                albums: testAlbums?.length || 0,
+            },
         });
     } catch (err) {
-        logger.error('Failed to cleanup test data', { error: err.message });
+        logger.error("Failed to cleanup test data", { error: err.message });
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
 // Simular error para testing
 app.get("/api/testing/simulate-error", (req, res) => {
-    const errorType = req.query.type || '500';
-    
+    const errorType = req.query.type || "500";
+
     metrics.errors.total++;
     metrics.errors.byType[errorType] = (metrics.errors.byType[errorType] || 0) + 1;
-    
+
     logger.error(`Simulated error: ${errorType}`);
-    
-    switch(errorType) {
-        case '400':
-            res.status(400).json({ error: 'Bad Request (simulado)' });
+
+    switch (errorType) {
+        case "400":
+            res.status(400).json({ error: "Bad Request (simulado)" });
             break;
-        case '404':
-            res.status(404).json({ error: 'Not Found (simulado)' });
+        case "404":
+            res.status(404).json({ error: "Not Found (simulado)" });
             break;
-        case '500':
+        case "500":
         default:
-            res.status(500).json({ error: 'Internal Server Error (simulado)' });
+            res.status(500).json({ error: "Internal Server Error (simulado)" });
     }
 });
 
@@ -1758,12 +1706,12 @@ app.get("/api/testing/simulate-error", (req, res) => {
 app.get("/api/testing/slow-endpoint", async (req, res) => {
     const delay = parseInt(req.query.delay) || 3000;
     logger.warn(`Slow endpoint called with ${delay}ms delay`);
-    
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    res.json({ 
-        message: 'Respuesta retrasada completada',
-        delay: `${delay}ms`
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    res.json({
+        message: "Respuesta retrasada completada",
+        delay: `${delay}ms`,
     });
 });
 
@@ -1773,7 +1721,7 @@ function formatUptime(ms) {
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
-    
+
     if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
     if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
@@ -1781,4 +1729,3 @@ function formatUptime(ms) {
 }
 
 // ===== FIN DE ENDPOINTS DE MONITOREO =====
-
