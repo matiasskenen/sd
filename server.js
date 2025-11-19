@@ -898,28 +898,27 @@ async function procesarOrden(orderData, timestamp) {
 
     console.log(`\n[${timestamp}] 🔍 PROCESANDO ORDEN: ${orderId}`);
 
-    // Verificar si ya fue procesada
-    const { data: existingOrder, error: checkError } = await supabaseAdmin.from("orders").select("status, mercado_pago_payment_id").eq("id", orderId).single();
+    // Verificar si existe la orden
+    const { data: orders, error: checkError } = await supabaseAdmin
+        .from("orders")
+        .select("status, mercado_pago_payment_id, customer_email")
+        .eq("id", orderId);
 
-    if (checkError) {
-        console.log(`   ❌ Error consultando orden en DB:`, checkError.message);
+    if (checkError || !orders || orders.length === 0) {
+        console.log(`   ❌ Orden no encontrada en DB:`, checkError?.message || "No existe");
         return;
     }
 
+    const existingOrder = orders[0];
     console.log(`   Status actual en DB: ${existingOrder.status}`);
+    console.log(`   Email: ${existingOrder.customer_email}`);
 
     if (existingOrder.status === "paid" && existingOrder.mercado_pago_payment_id) {
         console.log(`   ⏭️ Ya procesada anteriormente, saltando`);
         return;
     }
 
-    // Obtener email del cliente
-    const { data: order, error: orderError } = await supabaseAdmin.from("orders").select("customer_email").eq("id", orderId).single();
-
-    if (orderError || !order) {
-        console.log(`   ❌ Error obteniendo email:`, orderError?.message);
-        return;
-    }
+    const order = existingOrder;
 
     console.log(`   Email: ${order.customer_email}`);
 
@@ -955,20 +954,27 @@ async function procesarOrden(orderData, timestamp) {
     console.log(`   Payment ID: ${paymentId}`);
     console.log(`   Expira: ${expiresAt.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`);
 
-    // Crear registro de descargas
-    const { error: downloadError } = await supabaseAdmin.from("descargas").upsert(
-        {
+    // Crear registro de descargas (si no existe)
+    const { data: existingDownload } = await supabaseAdmin
+        .from("descargas")
+        .select("*")
+        .eq("order_id", orderId)
+        .single();
+
+    if (!existingDownload) {
+        const { error: downloadError } = await supabaseAdmin.from("descargas").insert({
             order_id: orderId,
             user_email: order.customer_email,
             contador: 0,
-        },
-        { onConflict: "order_id" }
-    );
+        });
 
-    if (downloadError) {
-        console.log(`   ⚠️ Error creando registro de descargas:`, downloadError.message);
+        if (downloadError) {
+            console.log(`   ⚠️ Error creando registro de descargas:`, downloadError.message);
+        } else {
+            console.log(`   ✅ Registro de descargas creado`);
+        }
     } else {
-        console.log(`   ✅ Registro de descargas creado`);
+        console.log(`   ℹ️ Registro de descargas ya existe`);
     }
 
     console.log(`\n✅ ORDEN ${orderId} PROCESADA EXITOSAMENTE\n`);
