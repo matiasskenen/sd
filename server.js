@@ -709,12 +709,6 @@ const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutos TTL
 app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res) => {
     const now = new Date();
     const timestamp = now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-    const webhookId = `WH-${Date.now()}`;
-
-    // console.log(`\n${"=".repeat(80)}`);
-    // console.log(`[${timestamp}] 📩 WEBHOOK RECIBIDO`);
-    // console.log(`ID: ${webhookId}`);
-    // console.log(`${"=".repeat(80)}`);
 
     try {
         // Extraer datos básicos
@@ -723,15 +717,9 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         const dataId = req.query.id || req.body.data?.id;
         const topic = req.query.topic || req.body.type;
 
-        // console.log(`[${timestamp}] 📋 Datos básicos:`);
-        // console.log(`   Topic: ${topic}`);
-        // console.log(`   Data ID: ${dataId}`);
-        // console.log(`   Request ID: ${xRequestId}`);
-        // console.log(`   Body:`, JSON.stringify(req.body, null, 2));
-
         // Validar x-signature
         if (!xSignature) {
-            // console.log(`[${timestamp}] ❌ RECHAZADO: Falta x-signature`);
+            console.log(`[${timestamp}] ❌ Webhook sin x-signature - Topic: ${topic}, ID: ${dataId}`);
             return res.status(400).json({ error: "Missing x-signature" });
         }
 
@@ -747,7 +735,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         });
 
         if (!ts || !hash) {
-            // console.log(`[${timestamp}] ❌ RECHAZADO: Formato de signature inválido`);
+            console.log(`[${timestamp}] ❌ Signature inválida - Topic: ${topic}, ID: ${dataId}`);
             return res.status(400).json({ error: "Invalid signature format" });
         }
 
@@ -762,16 +750,8 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
         const signatureMatch = computedHash === hash;
 
-        // console.log(`[${timestamp}] 🔑 Validación de firma HMAC:`);
-        // console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + "..." : "UNDEFINED"}`);
-        // console.log(`   SECRET (length): ${secret ? secret.length : 0}`);
-        // console.log(`   Manifest: ${manifest}`);
-        // console.log(`   Hash recibido: ${hash}`);
-        // console.log(`   Hash calculado: ${computedHash}`);
-        // console.log(`   ${signatureMatch ? "✅ VÁLIDA" : "❌ INVÁLIDA"}`);
-
         if (!signatureMatch) {
-            // console.log(`[${timestamp}] ❌ RECHAZADO: Firma HMAC inválida`);
+            console.log(`[${timestamp}] ❌ HMAC inválido - Topic: ${topic}, ID: ${dataId}`);
             return res.status(401).json({ error: "Invalid signature" });
         }
 
@@ -805,8 +785,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             // console.log(`   Response status: ${mpRes.status}`);
 
             if (!mpRes.ok) {
-                // console.log(`   ❌ ERROR: Payment ${dataId} no existe aún (${mpRes.status})`);
-                // console.log(`   💡 Probablemente MP enviará otro webhook cuando esté listo`);
+                console.log(`[${timestamp}] ⏳ Payment ${dataId} aún no existe (${mpRes.status})`);
                 return res.status(200).json({ status: "payment_not_ready_yet" });
             }
 
@@ -841,37 +820,39 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             }
 
             const orderData = await orderRes.json();
-            await procesarOrden(orderData, timestamp);
+            const success = await procesarOrden(orderData, timestamp);
+            
+            if (success) {
+                console.log(`[${timestamp}] ✅ Payment ${dataId} procesado - Orden: ${orderData.external_reference}`);
+            }
 
             return res.status(200).json({ status: "processed" });
         }
 
         // CASO 2: Notificación de MERCHANT_ORDER
         if (topic === "merchant_order") {
-            // console.log(`\n[${timestamp}] 📦 MERCHANT_ORDER WEBHOOK`);
-            // console.log(`   Merchant Order ID: ${dataId}`);
-
             const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${dataId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             if (!orderRes.ok) {
-                // console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
+                console.log(`[${timestamp}] ❌ Error consultando merchant_order ${dataId}: ${orderRes.status}`);
                 return res.status(500).json({ error: "Failed to fetch merchant_order" });
             }
 
             const orderData = await orderRes.json();
-            await procesarOrden(orderData, timestamp);
+            const success = await procesarOrden(orderData, timestamp);
+            
+            if (success) {
+                console.log(`[${timestamp}] ✅ Merchant Order ${dataId} procesado - Orden: ${orderData.external_reference}`);
+            }
 
             return res.status(200).json({ status: "processed" });
         }
 
         res.status(200).json({ status: "ignored_topic" });
     } catch (error) {
-        const errorTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        // console.log(`\n[${errorTime}] ❌ ERROR EN WEBHOOK`);
-        // console.log(`Error: ${error.message}`);
-        // console.log(`Stack:`, error.stack);
+        console.log(`[${timestamp}] ❌ ERROR: ${error.message}`);
         res.status(500).json({ error: "Internal server error" });
     }
 });
