@@ -752,6 +752,10 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
         if (!signatureMatch) {
             console.log(`[${timestamp}] ❌ HMAC inválido - Topic: ${topic}, ID: ${dataId}`);
+            console.log(`   Secret usado: ${secret?.substring(0, 10)}...${secret?.substring(secret.length - 10)}`);
+            console.log(`   Manifest: ${manifest}`);
+            console.log(`   Hash recibido: ${hash}`);
+            console.log(`   Hash calculado: ${computedHash}`);
             return res.status(401).json({ error: "Invalid signature" });
         }
 
