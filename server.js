@@ -91,7 +91,7 @@ const logger = {
         // Log a consola si está habilitado
         if (consoleLoggingEnabled) {
             const emoji = { DEBUG: "🔍", INFO: "ℹ️", WARN: "⚠️", ERROR: "❌" }[level] || "";
-            console.log(`${emoji} [${timestamp}] [${level}] ${message}`, metadata && Object.keys(metadata).length > 0 ? metadata : "");
+            // console.log(`${emoji} [${timestamp}] [${level}] ${message}`, metadata && Object.keys(metadata).length > 0 ? metadata : "");
         }
     },
     debug: (msg, meta) => logger._log("DEBUG", msg, meta),
@@ -188,7 +188,7 @@ async function getMerchantOrderWithRetry(merchantOrderId, retries = 5) {
             } // Si no tiene pagos y no es el último intento, esperamos y reintentamos
 
             if (i < retries - 1) {
-                console.log(`Intento ${i + 1} sin pagos. Esperando 3s...`);
+                // console.log(`Intento ${i + 1} sin pagos. Esperando 3s...`);
                 await new Promise((res) => setTimeout(res, 3000));
             } else {
                 // Último intento, devolvemos lo que tengamos
@@ -214,7 +214,7 @@ async function tryGetPaymentWithRetry(paymentId, retries = 3) {
             return result;
         } catch (err) {
             if (err.status === 404 && i < retries - 1) {
-                console.log(`Intento ${i + 1} falló al obtener Payment. Reintentando en 3s...`);
+                // console.log(`Intento ${i + 1} falló al obtener Payment. Reintentando en 3s...`);
                 await new Promise((res) => setTimeout(res, 3000));
             } else {
                 throw err;
@@ -540,7 +540,7 @@ async function createPaymentPreferenceHandler(req, res) {
             notification_url: `${process.env.BACKEND_URL}/mercadopago-webhook`,
         };
 
-        console.log(prefBody);
+        // console.log(prefBody);
         const prefRes = await preference.create({ body: prefBody });
         const initPoint = process.env.NODE_ENV === "production" ? prefRes.init_point : prefRes.sandbox_init_point;
 
@@ -597,7 +597,7 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
     }
 
     const watermarkedPhotosPath = path.resolve(__dirname, "assets", "watermark.png");
-    console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
+    // console.log("Intentando cargar marca de agua desde:", watermarkedPhotosPath);
     if (!fs.existsSync(watermarkedPhotosPath)) {
         console.error(`Error: Archivo de marca de agua no encontrado en ${watermarkedPhotosPath}`);
         return res.status(500).json({ message: "Error interno: Archivo de marca de agua no encontrado." });
@@ -711,10 +711,10 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
     const timestamp = now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
     const webhookId = `WH-${Date.now()}`;
 
-    console.log(`\n${"=".repeat(80)}`);
-    console.log(`[${timestamp}] 📩 WEBHOOK RECIBIDO`);
-    console.log(`ID: ${webhookId}`);
-    console.log(`${"=".repeat(80)}`);
+    // console.log(`\n${"=".repeat(80)}`);
+    // console.log(`[${timestamp}] 📩 WEBHOOK RECIBIDO`);
+    // console.log(`ID: ${webhookId}`);
+    // console.log(`${"=".repeat(80)}`);
 
     try {
         // Extraer datos básicos
@@ -723,15 +723,15 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         const dataId = req.query.id || req.body.data?.id;
         const topic = req.query.topic || req.body.type;
 
-        console.log(`[${timestamp}] 📋 Datos básicos:`);
-        console.log(`   Topic: ${topic}`);
-        console.log(`   Data ID: ${dataId}`);
-        console.log(`   Request ID: ${xRequestId}`);
-        console.log(`   Body:`, JSON.stringify(req.body, null, 2));
+        // console.log(`[${timestamp}] 📋 Datos básicos:`);
+        // console.log(`   Topic: ${topic}`);
+        // console.log(`   Data ID: ${dataId}`);
+        // console.log(`   Request ID: ${xRequestId}`);
+        // console.log(`   Body:`, JSON.stringify(req.body, null, 2));
 
         // Validar x-signature
         if (!xSignature) {
-            console.log(`[${timestamp}] ❌ RECHAZADO: Falta x-signature`);
+            // console.log(`[${timestamp}] ❌ RECHAZADO: Falta x-signature`);
             return res.status(400).json({ error: "Missing x-signature" });
         }
 
@@ -747,7 +747,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         });
 
         if (!ts || !hash) {
-            console.log(`[${timestamp}] ❌ RECHAZADO: Formato de signature inválido`);
+            // console.log(`[${timestamp}] ❌ RECHAZADO: Formato de signature inválido`);
             return res.status(400).json({ error: "Invalid signature format" });
         }
 
@@ -762,23 +762,23 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
         const signatureMatch = computedHash === hash;
 
-        console.log(`[${timestamp}] 🔑 Validación de firma HMAC:`);
-        console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + "..." : "UNDEFINED"}`);
-        console.log(`   SECRET (length): ${secret ? secret.length : 0}`);
-        console.log(`   Manifest: ${manifest}`);
-        console.log(`   Hash recibido: ${hash}`);
-        console.log(`   Hash calculado: ${computedHash}`);
-        console.log(`   ${signatureMatch ? "✅ VÁLIDA" : "❌ INVÁLIDA"}`);
+        // console.log(`[${timestamp}] 🔑 Validación de firma HMAC:`);
+        // console.log(`   SECRET (primeros 20 chars): ${secret ? secret.substring(0, 20) + "..." : "UNDEFINED"}`);
+        // console.log(`   SECRET (length): ${secret ? secret.length : 0}`);
+        // console.log(`   Manifest: ${manifest}`);
+        // console.log(`   Hash recibido: ${hash}`);
+        // console.log(`   Hash calculado: ${computedHash}`);
+        // console.log(`   ${signatureMatch ? "✅ VÁLIDA" : "❌ INVÁLIDA"}`);
 
         if (!signatureMatch) {
-            console.log(`[${timestamp}] ❌ RECHAZADO: Firma HMAC inválida`);
+            // console.log(`[${timestamp}] ❌ RECHAZADO: Firma HMAC inválida`);
             return res.status(401).json({ error: "Invalid signature" });
         }
 
         // Idempotencia
         const idempotencyKey = xRequestId || `${topic}-${dataId}`;
         if (replayProtectionCache.has(idempotencyKey)) {
-            console.log(`[${timestamp}] ⚠️ DUPLICADO: Ya procesado anteriormente`);
+            // console.log(`[${timestamp}] ⚠️ DUPLICADO: Ya procesado anteriormente`);
             return res.status(200).json({ status: "already_processed" });
         }
 
@@ -788,55 +788,55 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         // ===== PROCESAMIENTO SEGÚN TIPO =====
 
         if (topic === "payment") {
-            console.log(`\n[${timestamp}] 💳 PAYMENT WEBHOOK`);
-            console.log(`   Payment ID: ${dataId}`);
+            // console.log(`\n[${timestamp}] 💳 PAYMENT WEBHOOK`);
+            // console.log(`   Payment ID: ${dataId}`);
 
             // Esperar 3 segundos antes de consultar (MP tarda en crear el payment)
-            console.log(`   ⏳ Esperando 3s antes de consultar API...`);
+            // console.log(`   ⏳ Esperando 3s antes de consultar API...`);
             await new Promise((resolve) => setTimeout(resolve, 3000));
 
             const consultaTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-            console.log(`   [${consultaTime}] 🔍 Consultando payment en API de MP...`);
+            // console.log(`   [${consultaTime}] 🔍 Consultando payment en API de MP...`);
 
             const mpRes = await fetch(`https://api.mercadolibre.com/v1/payments/${dataId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
-            console.log(`   Response status: ${mpRes.status}`);
+            // console.log(`   Response status: ${mpRes.status}`);
 
             if (!mpRes.ok) {
-                console.log(`   ❌ ERROR: Payment ${dataId} no existe aún (${mpRes.status})`);
-                console.log(`   💡 Probablemente MP enviará otro webhook cuando esté listo`);
+                // console.log(`   ❌ ERROR: Payment ${dataId} no existe aún (${mpRes.status})`);
+                // console.log(`   💡 Probablemente MP enviará otro webhook cuando esté listo`);
                 return res.status(200).json({ status: "payment_not_ready_yet" });
             }
 
             const paymentData = await mpRes.json();
-            console.log(`   ✅ Payment encontrado`);
-            console.log(`   Status: ${paymentData.status}`);
-            console.log(`   Status detail: ${paymentData.status_detail}`);
-            console.log(`   External reference: ${paymentData.external_reference}`);
-            console.log(`   Order ID: ${paymentData.order?.id}`);
+            // console.log(`   ✅ Payment encontrado`);
+            // console.log(`   Status: ${paymentData.status}`);
+            // console.log(`   Status detail: ${paymentData.status_detail}`);
+            // console.log(`   External reference: ${paymentData.external_reference}`);
+            // console.log(`   Order ID: ${paymentData.order?.id}`);
 
             if (paymentData.status !== "approved") {
-                console.log(`   ⏭️ Payment no aprobado, ignorando`);
+                // console.log(`   ⏭️ Payment no aprobado, ignorando`);
                 return res.status(200).json({ status: "not_approved" });
             }
 
             // Procesar merchant_order
             const merchantOrderId = paymentData.order?.id;
             if (!merchantOrderId) {
-                console.log(`   ⚠️ Payment aprobado pero sin merchant_order`);
+                // console.log(`   ⚠️ Payment aprobado pero sin merchant_order`);
                 return res.status(200).json({ status: "no_merchant_order" });
             }
 
-            console.log(`   ➡️ Procesando merchant_order: ${merchantOrderId}`);
+            // console.log(`   ➡️ Procesando merchant_order: ${merchantOrderId}`);
 
             const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${merchantOrderId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             if (!orderRes.ok) {
-                console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
+                // console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
                 return res.status(500).json({ error: "Failed to fetch merchant_order" });
             }
 
@@ -848,15 +848,15 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
         // CASO 2: Notificación de MERCHANT_ORDER
         if (topic === "merchant_order") {
-            console.log(`\n[${timestamp}] 📦 MERCHANT_ORDER WEBHOOK`);
-            console.log(`   Merchant Order ID: ${dataId}`);
+            // console.log(`\n[${timestamp}] 📦 MERCHANT_ORDER WEBHOOK`);
+            // console.log(`   Merchant Order ID: ${dataId}`);
 
             const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${dataId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             if (!orderRes.ok) {
-                console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
+                // console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
                 return res.status(500).json({ error: "Failed to fetch merchant_order" });
             }
 
@@ -869,33 +869,33 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         res.status(200).json({ status: "ignored_topic" });
     } catch (error) {
         const errorTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        console.log(`\n[${errorTime}] ❌ ERROR EN WEBHOOK`);
-        console.log(`Error: ${error.message}`);
-        console.log(`Stack:`, error.stack);
+        // console.log(`\n[${errorTime}] ❌ ERROR EN WEBHOOK`);
+        // console.log(`Error: ${error.message}`);
+        // console.log(`Stack:`, error.stack);
         res.status(500).json({ error: "Internal server error" });
     }
 });
 
 // Función auxiliar para procesar orden
 async function procesarOrden(orderData, timestamp) {
-    console.log(`   Order status: ${orderData.order_status}`);
-    console.log(`   Paid amount: ${orderData.paid_amount}`);
-    console.log(`   Total amount: ${orderData.total_amount}`);
-    console.log(`   External reference: ${orderData.external_reference}`);
+    // console.log(`   Order status: ${orderData.order_status}`);
+    // console.log(`   Paid amount: ${orderData.paid_amount}`);
+    // console.log(`   Total amount: ${orderData.total_amount}`);
+    // console.log(`   External reference: ${orderData.external_reference}`);
 
     if (orderData.order_status !== "paid" && orderData.paid_amount < orderData.total_amount) {
-        console.log(`   ⏭️ Orden no completamente pagada, ignorando`);
+        // console.log(`   ⏭️ Orden no completamente pagada, ignorando`);
         return;
     }
 
     const orderId = orderData.external_reference;
 
     if (!orderId) {
-        console.log(`   ❌ External reference faltante`);
+        // console.log(`   ❌ External reference faltante`);
         return;
     }
 
-    console.log(`\n[${timestamp}] 🔍 PROCESANDO ORDEN: ${orderId}`);
+    // console.log(`\n[${timestamp}] 🔍 PROCESANDO ORDEN: ${orderId}`);
 
     // Verificar si existe la orden
     const { data: orders, error: checkError } = await supabaseAdmin
@@ -904,32 +904,32 @@ async function procesarOrden(orderData, timestamp) {
         .eq("id", orderId);
 
     if (checkError || !orders || orders.length === 0) {
-        console.log(`   ❌ Orden no encontrada en DB:`, checkError?.message || "No existe");
+        // console.log(`   ❌ Orden no encontrada en DB:`, checkError?.message || "No existe");
         return;
     }
 
     const existingOrder = orders[0];
-    console.log(`   Status actual en DB: ${existingOrder.status}`);
-    console.log(`   Email: ${existingOrder.customer_email}`);
+    // console.log(`   Status actual en DB: ${existingOrder.status}`);
+    // console.log(`   Email: ${existingOrder.customer_email}`);
 
     if (existingOrder.status === "paid" && existingOrder.mercado_pago_payment_id) {
-        console.log(`   ⏭️ Ya procesada anteriormente, saltando`);
+        // console.log(`   ⏭️ Ya procesada anteriormente, saltando`);
         return;
     }
 
     const order = existingOrder;
 
-    console.log(`   Email: ${order.customer_email}`);
+    // console.log(`   Email: ${order.customer_email}`);
 
     // Obtener items del pedido
     const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
 
     if (itemsError || !orderItems || orderItems.length === 0) {
-        console.log(`   ❌ Error obteniendo items:`, itemsError?.message);
+        // console.log(`   ❌ Error obteniendo items:`, itemsError?.message);
         return;
     }
 
-    console.log(`   Fotos en pedido: ${orderItems.length}`);
+    // console.log(`   Fotos en pedido: ${orderItems.length}`);
 
     // Actualizar orden a 'paid'
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -945,13 +945,13 @@ async function procesarOrden(orderData, timestamp) {
         .eq("id", orderId);
 
     if (updateError) {
-        console.log(`   ❌ Error actualizando orden:`, updateError.message);
+        // console.log(`   ❌ Error actualizando orden:`, updateError.message);
         return;
     }
 
-    console.log(`   ✅ Orden actualizada a 'paid'`);
-    console.log(`   Payment ID: ${paymentId}`);
-    console.log(`   Expira: ${expiresAt.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`);
+    // console.log(`   ✅ Orden actualizada a 'paid'`);
+    // console.log(`   Payment ID: ${paymentId}`);
+    // console.log(`   Expira: ${expiresAt.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`);
 
     // Crear registro de descargas (si no existe)
     const { data: existingDownload } = await supabaseAdmin
@@ -968,20 +968,20 @@ async function procesarOrden(orderData, timestamp) {
         });
 
         if (downloadError) {
-            console.log(`   ⚠️ Error creando registro de descargas:`, downloadError.message);
+            // console.log(`   ⚠️ Error creando registro de descargas:`, downloadError.message);
         } else {
-            console.log(`   ✅ Registro de descargas creado`);
+            // console.log(`   ✅ Registro de descargas creado`);
         }
     } else {
-        console.log(`   ℹ️ Registro de descargas ya existe`);
+        // console.log(`   ℹ️ Registro de descargas ya existe`);
     }
 
-    console.log(`\n✅ ORDEN ${orderId} PROCESADA EXITOSAMENTE\n`);
+    // console.log(`\n✅ ORDEN ${orderId} PROCESADA EXITOSAMENTE\n`);
 }
 
 // ===== ENDPOINT DE TESTING: Simular Pago Aprobado =====
 app.post("/simulate-payment", express.json(), async (req, res) => {
-    console.log("\n🧪 ===== SIMULACIÓN DE PAGO (SOLO TESTING) =====");
+    // console.log("\n🧪 ===== SIMULACIÓN DE PAGO (SOLO TESTING) =====");
 
     try {
         const { orderId } = req.body;
@@ -990,7 +990,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
             return res.status(400).json({ error: "orderId es requerido" });
         }
 
-        console.log(`🔍 Simulando pago para orden: ${orderId}`);
+        // console.log(`🔍 Simulando pago para orden: ${orderId}`);
 
         // 1. Verificar que la orden existe
         const { data: existingOrder, error: checkError } = await supabaseAdmin.from("orders").select("status, customer_email").eq("id", orderId).single();
@@ -1001,15 +1001,15 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
         }
 
         if (existingOrder.status === "paid") {
-            console.log("⚠️ Orden ya está marcada como 'paid'");
+            // console.log("⚠️ Orden ya está marcada como 'paid'");
             return res.status(200).json({
                 status: "already_paid",
                 message: "La orden ya está pagada",
             });
         }
 
-        console.log(`   - Status actual: ${existingOrder.status}`);
-        console.log(`   - Email: ${existingOrder.customer_email}`);
+        // console.log(`   - Status actual: ${existingOrder.status}`);
+        // console.log(`   - Email: ${existingOrder.customer_email}`);
 
         // 2. Obtener items del pedido
         const { data: orderItems, error: itemsError } = await supabaseAdmin.from("order_items").select("photo_id").eq(ORDER_FIELD_NAME, orderId);
@@ -1019,7 +1019,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
             return res.status(500).json({ error: "Order items not found" });
         }
 
-        console.log(`   - Fotos en el pedido: ${orderItems.length}`);
+        // console.log(`   - Fotos en el pedido: ${orderItems.length}`);
 
         // 3. Obtener rutas de fotos originales
         const photoIds = orderItems.map((item) => item.photo_id);
@@ -1030,7 +1030,7 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
             return res.status(500).json({ error: "Photos not found" });
         }
 
-        console.log(`   - Fotos encontradas: ${photos.length}`);
+        // console.log(`   - Fotos encontradas: ${photos.length}`);
 
         // 4. Actualizar orden a 'paid'
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -1050,9 +1050,9 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
             return res.status(500).json({ error: "Failed to update order" });
         }
 
-        console.log(`   ✓ Orden actualizada a 'paid'`);
-        console.log(`   - Payment ID simulado: ${simulatedPaymentId}`);
-        console.log(`   - Expira: ${expiresAt.toISOString()}`);
+        // console.log(`   ✓ Orden actualizada a 'paid'`);
+        // console.log(`   - Payment ID simulado: ${simulatedPaymentId}`);
+        // console.log(`   - Expira: ${expiresAt.toISOString()}`);
 
         // 5. Crear registro de descargas
         const { error: downloadError } = await supabaseAdmin.from("descargas").upsert(
@@ -1067,10 +1067,10 @@ app.post("/simulate-payment", express.json(), async (req, res) => {
         if (downloadError) {
             console.error("❌ Error creando registro de descargas:", downloadError);
         } else {
-            console.log(`   ✓ Registro de descargas creado (contador: 0)`);
+            // console.log(`   ✓ Registro de descargas creado (contador: 0)`);
         }
 
-        console.log("\n✅ ===== SIMULACIÓN COMPLETADA =====\n");
+        // console.log("\n✅ ===== SIMULACIÓN COMPLETADA =====\n");
 
         res.status(200).json({
             status: "simulated_success",
@@ -1227,7 +1227,7 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
         }
 
         // 6. Redirigir al usuario a la URL firmada
-        console.log(`✅ URL firmada generada para foto ${photoId}`);
+        // console.log(`✅ URL firmada generada para foto ${photoId}`);
         return res.redirect(signed.signedUrl);
     } catch (err) {
         console.error("❌ Error inesperado en la descarga de foto:", err);
@@ -1237,8 +1237,8 @@ app.get("/download-photo/:photoId/:orderId/:customerEmail", async (req, res) => 
 
 // --- Iniciar el servidor ---
 app.listen(PORT, () => {
-    console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
-    console.log("¡Listo para la acción con Supabase, Sharp y Mercado Pago Webhooks!");
+    // console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
+    // console.log("¡Listo para la acción con Supabase, Sharp y Mercado Pago Webhooks!");
 });
 
 app.get("/config.js", (req, res) => {
@@ -1422,7 +1422,7 @@ app.put("/albums/:id", async (req, res) => {
             if (photosError) {
                 console.error("Error al actualizar precios de fotos:", photosError);
             } else {
-                console.log(`✓ Precios actualizados para todas las fotos del álbum ${id}: $${price_per_photo}`);
+                // console.log(`✓ Precios actualizados para todas las fotos del álbum ${id}: $${price_per_photo}`);
             }
         }
 
