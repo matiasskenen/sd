@@ -706,87 +706,79 @@ const replayProtectionCache = new Map();
 const REPLAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutos TTL
 
 // --- WEBHOOK DE MERCADO PAGO (CON RATE LIMITING) ---
+const crypto = require("crypto");
+
 app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res) => {
     const now = new Date();
     const timestamp = now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+    const MP_BASE_URL = "https://api.mercadopago.com";
 
     try {
-        // Extraer datos básicos
+        // --------- HEADERS Y DATOS BÁSICOS ---------
         const xSignature = req.headers["x-signature"];
-        const xRequestId = req.headers["x-request-id"];
-        const dataId = req.query.id || req.body.data?.id;
-        const topic = req.query.topic || req.body.type;
+        const xRequestId = req.headers["x-request-id"] || "no-request-id";
 
-        // Validar x-signature
+        const dataId = req.query["data.id"] || req.query.id || req.body.data?.id;
+
+        const topic = req.query.type || req.query.topic || req.body.type;
+
+        // --------- VALIDACIÓN DE SIGNATURE ---------
         if (!xSignature) {
             console.log(`[${timestamp}] ❌ Webhook sin x-signature - Topic: ${topic}, ID: ${dataId}`);
-            return res.status(400).json({ error: "Missing x-signature" });
+            return res.status(200).json({ status: "missing_signature_ignored" });
         }
 
-        // Parsear signature
         const parts = xSignature.split(",");
         let ts, hash;
-        parts.forEach((part) => {
+        for (const part of parts) {
             const [key, value] = part.split("=");
-            if (key && value) {
-                if (key.trim() === "ts") ts = value.trim();
-                if (key.trim() === "v1") hash = value.trim();
-            }
-        });
+            if (!key || !value) continue;
+            const k = key.trim();
+            const v = value.trim();
+            if (k === "ts") ts = v;
+            if (k === "v1") hash = v;
+        }
 
         if (!ts || !hash) {
-            console.log(`[${timestamp}] ❌ Signature inválida - Topic: ${topic}, ID: ${dataId}`);
-            return res.status(400).json({ error: "Invalid signature format" });
+            console.log(`[${timestamp}] ❌ Signature inválida (formato) - Topic: ${topic}, ID: ${dataId}`);
+            return res.status(200).json({ status: "invalid_signature_format_ignored" });
         }
 
-        // Validar firma HMAC
-        const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+        const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET || "";
         const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
 
-        const crypto = require("crypto");
-        const hmac = crypto.createHmac("sha256", secret);
-        hmac.update(manifest);
-        const computedHash = hmac.digest("hex");
+        const computedHash = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
 
-        const signatureMatch = computedHash === hash;
-
-        if (!signatureMatch) {
+        if (computedHash !== hash) {
             console.log(`[${timestamp}] ❌ HMAC inválido - Topic: ${topic}, ID: ${dataId}`);
-            console.log(`   Secret usado: ${secret?.substring(0, 10)}...${secret?.substring(secret.length - 10)}`);
-            console.log(`   Manifest: ${manifest}`);
-            console.log(`   Hash recibido: ${hash}`);
-            console.log(`   Hash calculado: ${computedHash}`);
-            return res.status(401).json({ error: "Invalid signature" });
+            return res.status(200).json({ status: "invalid_signature_ignored" });
         }
 
-        // Idempotencia
+        // --------- IDEMPOTENCIA ---------
         const idempotencyKey = xRequestId || `${topic}-${dataId}`;
         if (replayProtectionCache.has(idempotencyKey)) {
-            // console.log(`[${timestamp}] ⚠️ DUPLICADO: Ya procesado anteriormente`);
             return res.status(200).json({ status: "already_processed" });
         }
-
         replayProtectionCache.set(idempotencyKey, true);
         setTimeout(() => replayProtectionCache.delete(idempotencyKey), REPLAY_CACHE_TTL);
 
-        // ===== PROCESAMIENTO SEGÚN TIPO =====
-
+        // =================================================
+        //   CASO 1: PAYMENT
+        // =================================================
         if (topic === "payment") {
-            // console.log(`\n[${timestamp}] 💳 PAYMENT WEBHOOK`);
-            // console.log(`   Payment ID: ${dataId}`);
+            console.log(`\n[${timestamp}] 💳 PAYMENT WEBHOOK - ID: ${dataId}`);
 
-            // Esperar 3 segundos antes de consultar (MP tarda en crear el payment)
-            // console.log(`   ⏳ Esperando 3s antes de consultar API...`);
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            // esperar un toque a que MP tenga el payment listo
+            await new Promise((r) => setTimeout(r, 3000));
 
             const consultaTime = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-            // console.log(`   [${consultaTime}] 🔍 Consultando payment en API de MP...`);
+            console.log(`   [${consultaTime}] 🔍 Consultando payment en API de MP...`);
 
-            const mpRes = await fetch(`https://api.mercadolibre.com/v1/payments/${dataId}`, {
+            const mpRes = await fetch(`${MP_BASE_URL}/v1/payments/${dataId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
-            // console.log(`   Response status: ${mpRes.status}`);
+            console.log(`   Response status: ${mpRes.status}`);
 
             if (!mpRes.ok) {
                 console.log(`[${timestamp}] ⏳ Payment ${dataId} aún no existe (${mpRes.status})`);
@@ -794,38 +786,32 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             }
 
             const paymentData = await mpRes.json();
-            // console.log(`   ✅ Payment encontrado`);
-            // console.log(`   Status: ${paymentData.status}`);
-            // console.log(`   Status detail: ${paymentData.status_detail}`);
-            // console.log(`   External reference: ${paymentData.external_reference}`);
-            // console.log(`   Order ID: ${paymentData.order?.id}`);
 
             if (paymentData.status !== "approved") {
-                // console.log(`   ⏭️ Payment no aprobado, ignorando`);
+                console.log(`   ⏭️ Payment no aprobado (${paymentData.status}), ignorando`);
                 return res.status(200).json({ status: "not_approved" });
             }
 
-            // Procesar merchant_order
             const merchantOrderId = paymentData.order?.id;
             if (!merchantOrderId) {
-                // console.log(`   ⚠️ Payment aprobado pero sin merchant_order`);
+                console.log(`   ⚠️ Payment aprobado pero sin merchant_order`);
                 return res.status(200).json({ status: "no_merchant_order" });
             }
 
-            // console.log(`   ➡️ Procesando merchant_order: ${merchantOrderId}`);
+            console.log(`   ➡️ Procesando merchant_order: ${merchantOrderId}`);
 
-            const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${merchantOrderId}`, {
+            const orderRes = await fetch(`${MP_BASE_URL}/merchant_orders/${merchantOrderId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
             if (!orderRes.ok) {
-                // console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
+                console.log(`   ❌ Error consultando merchant_order: ${orderRes.status}`);
                 return res.status(500).json({ error: "Failed to fetch merchant_order" });
             }
 
             const orderData = await orderRes.json();
             const success = await procesarOrden(orderData, timestamp);
-            
+
             if (success) {
                 console.log(`[${timestamp}] ✅ Payment ${dataId} procesado - Orden: ${orderData.external_reference}`);
             }
@@ -833,9 +819,13 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             return res.status(200).json({ status: "processed" });
         }
 
-        // CASO 2: Notificación de MERCHANT_ORDER
+        // =================================================
+        //   CASO 2: MERCHANT_ORDER
+        // =================================================
         if (topic === "merchant_order") {
-            const orderRes = await fetch(`https://api.mercadolibre.com/merchant_orders/${dataId}`, {
+            console.log(`\n[${timestamp}] 📦 MERCHANT_ORDER WEBHOOK - ID: ${dataId}`);
+
+            const orderRes = await fetch(`${MP_BASE_URL}/merchant_orders/${dataId}`, {
                 headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
             });
 
@@ -846,7 +836,7 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
 
             const orderData = await orderRes.json();
             const success = await procesarOrden(orderData, timestamp);
-            
+
             if (success) {
                 console.log(`[${timestamp}] ✅ Merchant Order ${dataId} procesado - Orden: ${orderData.external_reference}`);
             }
@@ -854,12 +844,15 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
             return res.status(200).json({ status: "processed" });
         }
 
-        res.status(200).json({ status: "ignored_topic" });
+        // Otros topics → ignorados pero respondemos 200
+        console.log(`[${timestamp}] ℹ️ Topic ignorado: ${topic} - ID: ${dataId}`);
+        return res.status(200).json({ status: "ignored_topic" });
     } catch (error) {
-        console.log(`[${timestamp}] ❌ ERROR: ${error.message}`);
-        res.status(500).json({ error: "Internal server error" });
+        console.log(`[${timestamp}] ❌ ERROR WEBHOOK: ${error.message}`);
+        return res.status(500).json({ error: "Internal server error" });
     }
 });
+
 
 // Función auxiliar para procesar orden
 async function procesarOrden(orderData, timestamp) {
