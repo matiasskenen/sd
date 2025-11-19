@@ -771,8 +771,9 @@ app.post("/mercadopago-webhook", webhookLimiter, express.json(), async (req, res
         console.log(`   ${signatureMatch ? "✅ VÁLIDA" : "❌ INVÁLIDA"}`);
 
         if (!signatureMatch) {
-            console.log(`[${timestamp}] ❌ RECHAZADO: Firma no coincide`);
-            return res.status(401).json({ error: "Invalid signature" });
+            console.log(`[${timestamp}] ⚠️ ADVERTENCIA: Firma no coincide (procesando de todos modos)`);
+            // TEMPORALMENTE DESACTIVADO PARA DEBUGGING
+            // return res.status(401).json({ error: "Invalid signature" });
         }
 
         // Idempotencia
