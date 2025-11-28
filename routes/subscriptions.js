@@ -117,12 +117,13 @@ router.post("/create", requireAuth, async (req, res) => {
             console.log('✅ Respuesta de MP:', preapprovalResponse);
         }
 
-        // Guardar la suscripción pendiente en la BD
+        // Guardar la suscripción en la BD
         const now = new Date();
         const nextBillingDate = new Date(now);
         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
-        const subscriptionStatus = simulateMP ? 'active' : 'pending';
+        // Status siempre 'active' - el webhook de MP actualizará si hay problemas
+        const subscriptionStatus = 'active';
         
         const { data: subscription, error: subError } = await supabaseAdmin
             .from("subscriptions")
@@ -146,19 +147,17 @@ router.post("/create", requireAuth, async (req, res) => {
             return res.status(500).json({ error: "Error al guardar suscripción" });
         }
 
-        // En simulación, activar inmediatamente
-        if (simulateMP) {
-            await supabaseAdmin
-                .from("photographers")
-                .update({
-                    plan_type: planType,
-                    subscription_status: "active",
-                    subscription_expires_at: nextBillingDate.toISOString(),
-                })
-                .eq("id", photographer.id);
-            
-            console.log(`✅ Suscripción ${planType} activada para ${photographer.email}`);
-        }
+        // Actualizar fotógrafo con el nuevo plan
+        await supabaseAdmin
+            .from("photographers")
+            .update({
+                plan_type: planType,
+                subscription_status: "active",
+                subscription_expires_at: nextBillingDate.toISOString(),
+            })
+            .eq("id", photographer.id);
+        
+        console.log(`✅ Suscripción ${planType} creada para ${photographer.email}`);
 
         res.status(200).json({
             message: "Suscripción creada",
