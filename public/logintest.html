@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolSnap - Acceso Fotógrafos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Minimal Navbar -->
+    <nav class="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="#" class="flex items-center gap-2">
+                    <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight text-slate-900">SchoolSnap</span>
+                </a>
+                
+                <a href="#" class="text-sm font-medium text-slate-500 hover:text-blue-600 transition">
+                    ¿Sos una escuela?
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content: Login Split -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-8">
+        <div class="w-full max-w-5xl bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+            
+            <!-- Left Side: Login Form -->
+            <div class="w-full md:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 mb-2">Bienvenido de nuevo</h1>
+                    <p class="text-slate-500">Ingresá a tu panel para gestionar galerías.</p>
+                </div>
+
+                <form class="space-y-5">
+                    <!-- Email Input -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-slate-700 mb-1.5">Correo electrónico</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i data-lucide="mail" class="w-5 h-5"></i>
+                            </div>
+                            <input type="email" id="email" name="email" class="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition" placeholder="nombre@ejemplo.com">
+                        </div>
+                    </div>
+
+                    <!-- Password Input -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="password" class="block text-sm font-medium text-slate-700">Contraseña</label>
+                            <a href="#" class="text-sm font-medium text-blue-600 hover:text-blue-500">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i data-lucide="lock" class="w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="password" name="password" class="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition" placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <!-- Remember Me -->
+                    <div class="flex items-center">
+                        <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="remember-me" class="ml-2 block text-sm text-slate-600">
+                            Recordar mi dispositivo
+                        </label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition shadow-blue-600/20">
+                        Iniciar Sesión
+                    </button>
+
+                    <!-- Divider -->
+                    <div class="relative my-6">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-200"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-2 bg-white text-slate-500">O continuá con</span>
+                        </div>
+                    </div>
+
+                    <!-- Social Login (Optional, keeping visual consistency) -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" class="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-slate-700 hover:bg-gray-50 transition">
+                            <svg class="h-5 w-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .533 5.333.533 12S5.867 24 12.48 24c3.44 0 6.013-1.133 8.04-3.24 2.067-2.067 2.68-5.32 2.68-7.96 0-.693-.093-1.347-.227-1.88H12.48z" />
+                            </svg>
+                            <span class="ml-2">Google</span>
+                        </button>
+                        <button type="button" class="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-slate-700 hover:bg-gray-50 transition">
+                            <i data-lucide="apple" class="w-5 h-5"></i>
+                            <span class="ml-2">Apple</span>
+                        </button>
+                    </div>
+                </form>
+
+                <p class="mt-8 text-center text-sm text-slate-600">
+                    ¿No tenés una cuenta?
+                    <a href="#" class="font-medium text-blue-600 hover:text-blue-500">Registrate como fotógrafo</a>
+                </p>
+            </div>
+
+            <!-- Right Side: Decorative Image/Panel -->
+            <div class="hidden md:block w-1/2 bg-blue-600 relative overflow-hidden">
+                <!-- Abstract Shapes/Gradient -->
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800"></div>
+                
+                <!-- Decorative Circle -->
+                <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-500/30 blur-3xl"></div>
+                <div class="absolute bottom-12 left-12 w-64 h-64 rounded-full bg-indigo-500/20 blur-3xl"></div>
+
+                <!-- Content Overlay -->
+                <div class="relative h-full flex flex-col justify-center items-center text-white p-12 text-center z-10">
+                    <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl mb-6 inline-block">
+                        <i data-lucide="camera" class="w-12 h-12 text-white"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold mb-4">Gestioná tus fotos escolares</h2>
+                    <p class="text-blue-100 text-lg leading-relaxed mb-8">
+                        Automatizá la venta, organizá por cursos y brindá una experiencia moderna a las familias.
+                    </p>
+                    
+                    <!-- Feature Tags -->
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <span class="px-3 py-1 bg-white/10 rounded-full text-sm backdrop-blur-sm border border-white/20">Seguridad Total</span>
+                        <span class="px-3 py-1 bg-white/10 rounded-full text-sm backdrop-blur-sm border border-white/20">Pagos Online</span>
+                        <span class="px-3 py-1 bg-white/10 rounded-full text-sm backdrop-blur-sm border border-white/20">Panel Intuitivo</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Simple Footer -->
+    <footer class="py-6 border-t border-gray-200 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400">
+            <p>&copy; 2024 SchoolSnap. Plataforma segura para gestión de fotografía escolar.</p>
+        </div>
+    </footer>
+
+    <!-- Init Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

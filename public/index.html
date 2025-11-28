@@ -3,291 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GreaterPhoto - Galería Escolar</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/index.css">
-    
+    <title>SchoolSnap - Fotografía Escolar</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hero-curve {
+            border-bottom-left-radius: 50% 100%;
+            border-top-left-radius: 50% 100%;
+        }
+    </style>
 </head>
+<body class="bg-gray-50 text-slate-800 antialiased">
 
-<body>
+    <!-- Navigation -->
+    <nav class="w-full bg-white border-b border-gray-100 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+                        <i data-lucide="camera" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">SchoolSnap</span>
+                </div>
 
-<!-- ---------- HERO DEL SEGUNDO CÓDIGO ---------- -->
-<div class="hero-section">
-    <div class="container">
-        <header class="navbar">
-            <div class="logo">
-                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#FFFFFF"/>
-                    <circle cx="12" cy="12" r="3" fill="#FFC000"/>
-                </svg>
-                GreaterPhoto
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#" class="text-sm font-medium text-slate-600 hover:text-blue-600 transition">Cómo funciona</a>
+                    <a href="#" class="text-sm font-medium text-slate-600 hover:text-blue-600 transition">Para Escuelas</a>
+                    <a href="#" class="text-sm font-medium text-slate-600 hover:text-blue-600 transition">Precios</a>
+                    <button class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-sm">
+                        Ingresar con código
+                    </button>
+                </div>
             </div>
+        </div>
+    </nav>
 
-            <nav class="nav-links">
-                <a href="#">Photographers</a>
-                <a href="#">Classes</a>
-                <a href="#">Workshops</a>
-                <a href="#" id="cartLink">Carrito (<span id="cart-count">0</span>)</a>
+    <!-- Hero Section -->
+    <section class="relative bg-blue-50/50 overflow-hidden">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row items-center min-h-[600px]">
                 
-            </nav>
-        </header>
-    </div>
+                <!-- Text Content -->
+                <div class="w-full md:w-1/2 px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10">
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 leading-[1.15] mb-6">
+                        Capturamos las sonrisas escolares de forma segura y moderna.
+                    </h1>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                        <button class="bg-blue-600 text-white px-6 py-3.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-md text-center">
+                            Tengo un código de foto
+                        </button>
+                        <button class="bg-white text-slate-700 border border-slate-200 px-6 py-3.5 rounded-lg text-sm font-semibold hover:bg-slate-50 transition shadow-sm text-center">
+                            Soy Escuela o Fotógrafo
+                        </button>
+                    </div>
+                </div>
 
-    <div class="hero-content">
-        <h1>Landscape Photography</h1>
-    </div>
-</div>
-
-<style>
-  body {
-    font-family: 'Inter', sans-serif;
-    /* Usar un color de fondo oscuro similar al de tu página principal */
-    background-color: #1a1a1a;
-    color: #f0f0f0;
-  }
-</style>
-
-<!--
-Sección optimizada para un flujo de QR con una mini-explicación de 3 pasos.
-Objetivo: Guiar al usuario (padre/madre) a la Galería de Fotos Escolares.
--->
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-<style>
-  body {
-    font-family: 'Inter', sans-serif;
-    /* Usar un color de fondo oscuro similar al de tu página principal */
-    background-color: #1a1a1a;
-    color: #f0f0f0;
-  }
-</style>
-
-<section id="servicio-principal" class="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
-  <div class="max-w-4xl mx-auto text-center bg-gray-900 p-8 sm:p-12 rounded-2xl shadow-2xl border border-gray-700">
-    
-    <!-- Título principal enfocado en el servicio -->
-    <h2 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-4">
-      Encuentra las Fotos de tu Hijo/a
-    </h2>
-    
-    <!-- Subtítulo y explicación de la acción -->
-    <p class="mt-4 text-xl text-gray-400 max-w-3xl mx-auto mb-12">
-      Sigue estos sencillos pasos para acceder, seleccionar y comprar tus recuerdos escolares.
-    </p>
-
-    <!-- Mini-Explicación de 3 Pasos -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:mb-16">
-        
-        <!-- Paso 1: Búsqueda y Código -->
-        <div class="text-center">
-            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">1</div>
-            <h3 class="text-xl font-semibold text-white mb-2">Busca tu Álbum</h3>
-            <p class="text-gray-400 text-sm">Ingresa a la galería y utiliza el código que te hemos proporcionado.</p>
+                <!-- Image with Circular Effect (Right Side) -->
+                <div class="w-full md:w-1/2 absolute md:relative right-0 h-[400px] md:h-[600px]">
+                    <div class="absolute inset-0" style="clip-path: ellipse(100% 100% at 100% 50%);">
+                        <img src="/assets/jovenes.png" alt="Estudiantes" class="w-full h-full object-cover object-center scale-110">
+                    </div>
+                </div>
+            </div>
         </div>
+    </section>
 
-        <!-- Paso 2: Visualización y Selección -->
-        <div class="text-center">
-            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">2</div>
-            <h3 class="text-xl font-semibold text-white mb-2">Selecciona tus Fotos</h3>
-            <p class="text-gray-400 text-sm">Visualiza las imágenes en alta resolución y añade tus favoritas al carrito.</p>
+    <!-- Cómo Funciona -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-slate-900">Cómo funciona</h2>
+                <p class="mt-3 text-slate-500 max-w-2xl mx-auto">Conservamos las fotos y compramos seguramente.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 text-center">
+                <!-- Step 1 -->
+                <div class="flex flex-col items-center group">
+                    <div class="w-12 h-12 mb-6 text-blue-600">
+                        <i data-lucide="upload-cloud" class="w-full h-full stroke-[1.5]"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 mb-2">1. El fotógrafo sube las fotos</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed px-4">El fotógrafo sube las fotos a la plataforma de forma segura.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="flex flex-col items-center group">
+                    <div class="w-12 h-12 mb-6 text-blue-600">
+                        <i data-lucide="mail" class="w-full h-full stroke-[1.5]"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 mb-2">2. Recibís tu código único</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed px-4">Recibís tu código único para acceder a tu galería privada.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="flex flex-col items-center group">
+                    <div class="w-12 h-12 mb-6 text-blue-600">
+                        <i data-lucide="monitor" class="w-full h-full stroke-[1.5]"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 mb-2">3. Mirás y elegís online</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed px-4">Elegís tus fotos favoritas desde cualquier dispositivo.</p>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="flex flex-col items-center group">
+                    <div class="w-12 h-12 mb-6 text-blue-600">
+                        <i data-lucide="download" class="w-full h-full stroke-[1.5]"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 mb-2">4. Pagás y descargás HD</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed px-4">Pago seguro y descarga inmediata en alta definición.</p>
+                </div>
+            </div>
         </div>
-        
-        <!-- Paso 3: Finalización de la Compra -->
-        <div class="text-center">
-            <div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full mx-auto mb-4 font-bold text-xl">3</div>
-            <h3 class="text-xl font-semibold text-white mb-2">Descarga y Disfruta</h3>
-            <p class="text-gray-400 text-sm">Finaliza la compra y recibe un enlace para descargar tus fotos sin marca de agua.</p>
+    </section>
+
+    <!-- Para Instituciones y Profesionales -->
+    <section class="py-20 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-slate-900 text-center mb-12">Para Instituciones y Profesionales</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <!-- Card Escuelas -->
+                <div class="bg-blue-100/50 p-8 rounded-2xl border border-blue-100 hover:shadow-lg transition">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-2xl font-bold text-slate-900">Escuelas</h3>
+                        <i data-lucide="school" class="w-8 h-8 text-blue-600 opacity-80"></i>
+                    </div>
+                    <p class="text-slate-600 mb-8 text-sm">Capturamos las sonrisas y momentos escolares de tus alumnos.</p>
+                    <ul class="space-y-4">
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-blue-600"></i> Privacidad total
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-blue-600"></i> Cero logística
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-blue-600"></i> Seguridad de datos
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card Fotógrafos -->
+                <div class="bg-gray-100/80 p-8 rounded-2xl border border-gray-200 hover:shadow-lg transition">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-2xl font-bold text-slate-900">Fotógrafos</h3>
+                        <i data-lucide="camera" class="w-8 h-8 text-slate-500 opacity-80"></i>
+                    </div>
+                    <p class="text-slate-600 mb-8 text-sm">Empoderamos tu profesión con herramientas modernas para fotógrafos.</p>
+                    <ul class="space-y-4">
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-slate-500"></i> Venta automatizada
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-slate-500"></i> Cero logística de cobro
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            <i data-lucide="check" class="w-5 h-5 text-slate-500"></i> Galería personalizada
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
+    </section>
 
-    </div>
-
-    <!-- Separador visual -->
-    <hr class="border-t border-gray-700 max-w-md mx-auto mb-10" />
-
-    <!-- Botón de Llamado a la Acción (CTA) principal -->
-    <a href="gallery.html" class="inline-flex items-center justify-center 
-           px-12 py-4 border border-transparent 
-           text-lg sm:text-xl font-bold rounded-full 
-           text-white bg-indigo-600 
-           shadow-lg 
-           transition duration-300 ease-in-out 
-           hover:bg-indigo-700 hover:shadow-xl 
-           transform hover:scale-105">
-      
-      <!-- Icono de Búsqueda (lucide-react, simulado con SVG para HTML) -->
-      <svg xmlns="http://www.w3.org/2000/svg" class="mr-3 h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 2m0 0l-2-2m2 2V9m6 3a9 9 16 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      
-      Ir a la Galería de Venta Ahora
-    </a>
-
-  </div>
-</section>
-
- <!-- Divisor transparente que da el 'final' al section. Se adapta al ancho completo. -->
-  <div class="transparent-divider max-w-7xl mx-auto"></div>
-
-<!-- ---------- SECCIÓN CLASES 1 ---------- -->
-<section class="marketing-section">
-
-    
-
-    <div class="container">
-        <div class="classes-grid-wrapper">
-        </div>
-    </div>
-
-
-</section>
-
-        </div>
+    <!-- Pricing -->
+    <section class="py-20 bg-white">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-slate-900 text-center mb-12">Precios</h2>
             
-    </div>
-</section>
-
-<!-- ---------- SECCIÓN CLASES 2 ---------- -->
-<section class="marketing-section" style="padding-top:0;">
-    <div class="container">
-        <h2>MORE CLASSES</h2>
-        <h3>Explore different styles</h3>
-
-        <div class="classes-grid-wrapper">
-            <div class="classes-grid">
-                <div class="class-card">
-                    <div class="card-image-container">
-                        <img src="https://picsum.photos/id/1043/400/280" alt="Calle">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                
+                <!-- Básico -->
+                <div class="p-8 rounded-2xl border border-gray-200 bg-white">
+                    <h3 class="text-xl font-bold text-slate-900 text-center mb-2">Básico</h3>
+                    <div class="text-center mb-4">
+                        <span class="text-4xl font-extrabold text-slate-900">$10</span>
+                        <span class="text-slate-500">/mo</span>
                     </div>
-                    <div class="card-info">
-                        <h4>Street</h4>
-                        <p>JOHN DOE</p>
-                    </div>
+                    <p class="text-xs text-center text-slate-500 mb-8 leading-relaxed">
+                        Para generación de fotografías escolares sin fotos con los niños.
+                    </p>
+                    <button class="w-full py-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition">
+                        Revisar más
+                    </button>
                 </div>
-                <div class="class-card">
-                    <div class="card-image-container">
-                        <img src="https://picsum.photos/id/1074/400/280" alt="Retrato">
+
+                <!-- Estándar (Highlighted) -->
+                <div class="p-8 rounded-2xl border-2 border-blue-500 bg-blue-50/30 relative">
+                    <h3 class="text-xl font-bold text-slate-900 text-center mb-2">Estándar</h3>
+                    <div class="text-center mb-4">
+                        <span class="text-4xl font-extrabold text-slate-900">$39</span>
+                        <span class="text-slate-500">/mo</span>
                     </div>
-                    <div class="card-info">
-                        <h4>Portrait</h4>
-                        <p>JANE SMITH</p>
-                    </div>
+                    <p class="text-xs text-center text-slate-500 mb-8 leading-relaxed">
+                        Por conocer sin un compromiso mantienen el precio para web esenciales.
+                    </p>
+                    <button class="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">
+                        Ingresar con código
+                    </button>
                 </div>
-                <div class="class-card">
-                    <div class="card-image-container">
-                        <img src="https://picsum.photos/id/1080/400/280" alt="Moda">
+
+                <!-- Premium -->
+                <div class="p-8 rounded-2xl border border-gray-200 bg-white">
+                    <h3 class="text-xl font-bold text-slate-900 text-center mb-2">Premium</h3>
+                    <div class="text-center mb-4">
+                        <span class="text-4xl font-extrabold text-slate-900">$100</span>
+                        <span class="text-slate-500">/mo</span>
                     </div>
-                    <div class="card-info">
-                        <h4>Fashion</h4>
-                        <p>ALICE B.</p>
-                    </div>
+                    <p class="text-xs text-center text-slate-500 mb-8 leading-relaxed">
+                        Por servicios completos, subida ilimitada y descargas escolares.
+                    </p>
+                    <button class="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">
+                        Ingresar con código
+                    </button>
                 </div>
-                <div class="class-card">
-                    <div class="card-image-container">
-                        <img src="https://picsum.photos/id/528/400/280" alt="Vida salvaje">
-                    </div>
-                    <div class="card-info">
-                        <h4>Wildlife</h4>
-                        <p>ROBERT C.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="arrow-right">&rsaquo;</div>
-        </div>
-    </div>
-</section>
-
-<!-- ---------- SECCIÓN CARRUSEL ---------- -->
-<section class="marketing-section" style="padding-top:0;">
-    <div class="container">
-        <h2>NEXT LEVEL</h2>
-        <h3>Advanced Workshops</h3>
-
-        <div class="carousel-container">
-            <div id="carouselSlides"></div>
-        </div>
-    </div>
-</section>
-
-
-
-<!-- ---------- MODAL FOTO ---------- -->
-<section id="photo-detail-modal" class="modal hidden">
-    <div class="modal-content">
-        <span onclick="hidePhotoDetailModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
-        <img id="modal-photo-img" style="width:100%;border-radius:10px;margin-bottom:12px;">
-        <h3 id="modal-photo-title"></h3>
-        <p><strong>Precio:</strong> <span id="modal-photo-price"></span></p>
-        <button id="modal-add-to-cart-btn" class="btn-primary">Agregar al Carrito</button>
-    </div>
-</section>
-
-<!-- ---------- MODAL CARRITO ---------- -->
-<section id="cart-modal" class="modal hidden">
-    <div class="modal-content">
-        <span onclick="hideCartModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
-
-        <h2>Tu Carrito</h2>
-        <div id="cart-modal-items-container" style="margin-top:15px;"></div>
-
-        <p style="margin-top:15px;">
-            Total: $<span id="cart-modal-total">0.00</span>
-        </p>
-
-        <button id="cart-modal-checkout-btn" class="btn-primary">Finalizar Compra</button>
-    </div>
-</section>
-
-<!-- ---------- MODAL EMAIL ---------- -->
-<section id="cart-email-modal" class="modal hidden">
-    <div class="modal-content">
-        <span onclick="hideCartEmailModal()" style="float:right;font-size:26px;cursor:pointer;">&times;</span>
-
-        <p>Ingresá tu email para recibir las fotos:</p>
-
-        <input id="cartEmailInput" style="width:100%;padding:8px;margin-top:10px;border-radius:8px;">
-        <button id="cartEmailConfirmBtn" class="btn-primary" style="margin-top:10px;width:100%;">Confirmar Compra</button>
-    </div>
-</section>
-
-<!-- ---------- FOOTER ---------- -->
-<footer class="main-footer">
-    <div class="container">
-        <div class="footer-grid">
-            <div>
-                <h3>GreaterPhoto</h3>
-                <p>Plataforma profesional de fotos y cursos.</p>
-            </div>
-
-            <div>
-                <h5>Explorar</h5>
-                <p>Clases</p>
-                <p>Workshops</p>
-            </div>
-
-            <div>
-                <h5>Ayuda</h5>
-                <p>FAQ</p>
-                <p>Soporte</p>
-            </div>
-
-            <div>
-                <h5>Legal</h5>
-                <p>Políticas</p>
-                <p>Términos</p>
             </div>
         </div>
+    </section>
 
-        <p style="text-align:center;margin-top:20px;color:#777;">
-            © 2024 GreaterPhoto — Todos los derechos reservados.
-        </p>
-    </div>
-</footer>
+    <!-- Footer -->
+    <footer class="py-12 border-t border-gray-200 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex gap-6 text-xs text-slate-500 font-medium">
+                <a href="#" class="hover:text-slate-800">Términos y Condiciones</a>
+                <a href="#" class="hover:text-slate-800">Política de Privacidad</a>
+                <a href="#" class="hover:text-slate-800">Contacto</a>
+            </div>
+            
+            <div class="flex gap-4">
+                <a href="#" class="text-slate-400 hover:text-slate-800 transition"><i data-lucide="facebook" class="w-5 h-5"></i></a>
+                <a href="#" class="text-slate-400 hover:text-slate-800 transition"><i data-lucide="twitter" class="w-5 h-5"></i></a>
+                <a href="#" class="text-slate-400 hover:text-slate-800 transition"><i data-lucide="instagram" class="w-5 h-5"></i></a>
+            </div>
+        </div>
+    </footer>
 
-<!-- ---------- JS LÓGICA COMPLETA (primer código) ---------- -->
-<script src="/js/indexprueba.js"></script>
-
-
+    <!-- Init Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>
