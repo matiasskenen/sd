@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Suscripción - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Mi Suscripción</h1>
+            <p class="text-gray-600 mt-2">Gestiona tu plan y pagos</p>
+        </div>
+
+        <!-- Estado de Suscripción -->
+        <div id="subscriptionStatus" class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <p class="text-gray-500">Cargando información...</p>
+        </div>
+
+        <!-- Planes Disponibles -->
+        <div id="plansSection" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Seleccionar Plan</h2>
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <!-- Plan Pro -->
+                <div class="bg-white rounded-lg shadow-md p-6 border-2 border-indigo-500">
+                    <h3 class="text-2xl font-bold text-indigo-600 mb-2">Plan Pro</h3>
+                    <p class="text-4xl font-bold text-gray-800 mb-4">$4.999<span class="text-lg text-gray-600">/mes</span></p>
+                    <ul class="mb-6 space-y-2">
+                        <li class="flex items-center"><span class="mr-2">✓</span> 50 álbumes</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> 1000 fotos por álbum</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> 100GB de almacenamiento</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Marca de agua personalizada</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Soporte prioritario</li>
+                    </ul>
+                    <button onclick="selectPlan('pro')" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">
+                        Seleccionar Pro
+                    </button>
+                </div>
+
+                <!-- Plan Premium -->
+                <div class="bg-white rounded-lg shadow-md p-6 border-2 border-purple-500">
+                    <div class="bg-purple-500 text-white text-sm font-bold py-1 px-3 rounded-full inline-block mb-2">POPULAR</div>
+                    <h3 class="text-2xl font-bold text-purple-600 mb-2">Plan Premium</h3>
+                    <p class="text-4xl font-bold text-gray-800 mb-4">$12.999<span class="text-lg text-gray-600">/mes</span></p>
+                    <ul class="mb-6 space-y-2">
+                        <li class="flex items-center"><span class="mr-2">✓</span> Álbumes ilimitados</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Fotos ilimitadas</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> 1TB de almacenamiento</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Marca de agua personalizada</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Soporte 24/7</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> API access</li>
+                        <li class="flex items-center"><span class="mr-2">✓</span> Sin branding</li>
+                    </ul>
+                    <button onclick="selectPlan('premium')" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                        Seleccionar Premium
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de Pagos -->
+        <div id="paymentsSection" class="hidden bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Historial de Pagos</h2>
+            <div id="paymentsList">
+                <p class="text-gray-500">No hay pagos registrados</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/config.js"></script>
+    <script type="module">
+        import { requireAuth, authenticatedFetch, getPhotographer } from '/admin/js/auth-utils.js';
+
+        // Verificar auth
+        if (!requireAuth()) {
+            window.location.href = '/admin/login.html';
+        }
+
+        const photographer = getPhotographer();
+        const BACKEND_URL = window.BACKEND_URL || '';
+
+        async function loadSubscriptionStatus() {
+            try {
+                const res = await authenticatedFetch(`${BACKEND_URL}/subscriptions/status`);
+                const data = await res.json();
+
+                const statusDiv = document.getElementById('subscriptionStatus');
+                const plansSection = document.getElementById('plansSection');
+                const paymentsSection = document.getElementById('paymentsSection');
+
+                if (data.hasSubscription) {
+                    const sub = data.subscription;
+                    const plan = sub.plans;
+                    
+                    let statusBadge = '';
+                    if (sub.status === 'active') {
+                        statusBadge = '<span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Activa</span>';
+                    } else if (sub.status === 'cancelled') {
+                        statusBadge = '<span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm">Cancelada</span>';
+                    } else if (sub.status === 'pending') {
+                        statusBadge = '<span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm">Pendiente</span>';
+                    }
+
+                    const nextBilling = new Date(sub.current_period_end).toLocaleDateString('es-AR');
+
+                    statusDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800">${plan.display_name}</h2>
+                                <p class="text-gray-600">$${(plan.price_cents / 100).toLocaleString('es-AR')}/mes</p>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="border-t pt-4 space-y-2">
+                            <p><strong>Estado:</strong> ${sub.status === 'active' ? 'Activa' : 'Inactiva'}</p>
+                            <p><strong>Próximo pago:</strong> ${nextBilling}</p>
+                            ${sub.cancel_at_period_end ? '<p class="text-red-600"><strong>⚠️ Se cancelará al fin del período</strong></p>' : ''}
+                        </div>
+                        ${sub.status === 'active' && !sub.cancel_at_period_end ? `
+                            <button onclick="cancelSubscription()" class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                                Cancelar Suscripción
+                            </button>
+                        ` : ''}
+                        ${sub.status === 'cancelled' ? `
+                            <button onclick="showPlans()" class="mt-4 bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">
+                                Renovar Suscripción
+                            </button>
+                        ` : ''}
+                    `;
+
+                    // Mostrar historial de pagos
+                    if (data.payments && data.payments.length > 0) {
+                        paymentsSection.classList.remove('hidden');
+                        const paymentsList = document.getElementById('paymentsList');
+                        paymentsList.innerHTML = data.payments.map(p => {
+                            const date = new Date(p.paid_at || p.created_at).toLocaleDateString('es-AR');
+                            const amount = `$${(p.amount_cents / 100).toLocaleString('es-AR')}`;
+                            const statusClass = p.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                            return `
+                                <div class="border-b py-3 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-semibold">${amount}</p>
+                                        <p class="text-sm text-gray-600">${date}</p>
+                                    </div>
+                                    <span class="${statusClass} px-3 py-1 rounded-full text-sm">${p.status}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                } else {
+                    // Sin suscripción - mostrar trial o expirado
+                    const trialEnds = data.photographer.trial_ends_at ? new Date(data.photographer.trial_ends_at) : null;
+                    const now = new Date();
+                    const isTrialActive = trialEnds && trialEnds > now;
+
+                    if (isTrialActive) {
+                        const daysLeft = Math.ceil((trialEnds - now) / (1000 * 60 * 60 * 24));
+                        statusDiv.innerHTML = `
+                            <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                                <h2 class="text-xl font-bold text-blue-800 mb-2">🎉 Período de Prueba</h2>
+                                <p class="text-blue-700">Te quedan <strong>${daysLeft} días</strong> de prueba gratuita</p>
+                                <p class="text-sm text-blue-600 mt-2">Termina el ${trialEnds.toLocaleDateString('es-AR')}</p>
+                            </div>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                                <h2 class="text-xl font-bold text-red-800 mb-2">⚠️ Suscripción Requerida</h2>
+                                <p class="text-red-700">Tu período de prueba ha expirado. Selecciona un plan para continuar.</p>
+                            </div>
+                        `;
+                    }
+
+                    plansSection.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('subscriptionStatus').innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                        <p class="text-red-700">Error al cargar la información</p>
+                    </div>
+                `;
+            }
+        }
+
+        window.selectPlan = async function(planType) {
+            if (!confirm(`¿Confirmar suscripción al Plan ${planType === 'pro' ? 'Pro' : 'Premium'}?`)) {
+                return;
+            }
+
+            try {
+                const res = await authenticatedFetch(`${BACKEND_URL}/subscriptions/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ planType })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Redirigir a Mercado Pago para completar el pago
+                    window.location.href = data.init_point;
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo crear la suscripción'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al crear suscripción');
+            }
+        };
+
+        window.cancelSubscription = async function() {
+            if (!confirm('¿Estás seguro de que deseas cancelar tu suscripción? Mantendrás acceso hasta el fin del período actual.')) {
+                return;
+            }
+
+            try {
+                const res = await authenticatedFetch(`${BACKEND_URL}/subscriptions/cancel`, {
+                    method: 'POST'
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert(data.message);
+                    loadSubscriptionStatus();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo cancelar'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cancelar suscripción');
+            }
+        };
+
+        window.showPlans = function() {
+            document.getElementById('plansSection').classList.remove('hidden');
+        };
+
+        // Cargar al inicio
+        loadSubscriptionStatus();
+
+        // Manejar retorno de Mercado Pago
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('subscription') === 'success') {
+            alert('¡Suscripción activada exitosamente!');
+            window.history.replaceState({}, '', window.location.pathname);
+            loadSubscriptionStatus();
+        }
+    </script>
+</body>
+</html>

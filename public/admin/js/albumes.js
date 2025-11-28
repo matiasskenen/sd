@@ -1,7 +1,12 @@
-export function init() {
-  console.log("Sección de álbumes cargada");
+import { requireAuth, authenticatedFetch } from "./auth-utils.js";
 
-  const BACKEND_URL = window.BACKEND_URL || ""; // Config global
+export function init() {
+    console.log("Sección de álbumes cargada");
+
+    // Verificar autenticación
+    if (!requireAuth()) return;
+
+    const BACKEND_URL = window.BACKEND_URL || ""; // Config global
   
   // DOM Elements
   const albumSelectionMode = document.getElementById('albumSelectionMode');
@@ -61,7 +66,7 @@ export function init() {
     albumSelect.innerHTML = '<option value="">Cargando álbumes...</option>';
     albumSelect.disabled = true;
     try {
-      const response = await fetch(`${BACKEND_URL}/albums`);
+      const response = await authenticatedFetch(`${BACKEND_URL}/albums`);
       const data = await response.json();
       if (response.ok) {
         albumSelect.innerHTML = '<option value="">-- Selecciona un álbum --</option>';
@@ -101,7 +106,7 @@ const createAlbum = async () => {
   hideMessage();
 
   try {
-    const response = await fetch(`${BACKEND_URL}/albums`, {
+    const response = await authenticatedFetch(`${BACKEND_URL}/albums`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -309,7 +314,7 @@ const createAlbum = async () => {
     const formData = new FormData();
     Array.from(files).forEach(file => formData.append('photos', file));
     try {
-      const response = await fetch(`${BACKEND_URL}/upload-photos/${albumIdToUse}`, {
+      const response = await authenticatedFetch(`${BACKEND_URL}/upload-photos/${albumIdToUse}`, {
         method: 'POST',
         body: formData
       });
@@ -358,7 +363,7 @@ const createAlbum = async () => {
 const fetchAlbumsWithPhotos = async () => {
   albumsList.innerHTML = `<p class="text-gray-500">Cargando álbumes...</p>`;
   try {
-    const res = await fetch(`${BACKEND_URL}/albums-with-photos`);
+    const res = await authenticatedFetch(`${BACKEND_URL}/albums-with-photos`);
     const data = await res.json();
 
     if (res.ok && Array.isArray(data)) {
@@ -570,7 +575,7 @@ const filterAlbums = () => {
 
 const deleteAlbum = async (albumId) => {
   try {
-    const res = await fetch(`${BACKEND_URL}/albums/${albumId}`, { method: "DELETE" });
+    const res = await authenticatedFetch(`${BACKEND_URL}/albums/${albumId}`, { method: "DELETE" });
     if (res.ok) {
       fetchAlbumsWithPhotos();
       fetchAlbums(); // refresca dropdown
@@ -616,7 +621,7 @@ saveEditAlbum.addEventListener("click", async () => {
     return;
   }
 
-  const res = await fetch(`${BACKEND_URL}/albums/${id}`, {
+  const res = await authenticatedFetch(`${BACKEND_URL}/albums/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
@@ -639,7 +644,7 @@ saveEditAlbum.addEventListener("click", async () => {
 
 const deletePhoto = async (photoId) => {
   try {
-    const res = await fetch(`${BACKEND_URL}/photos/${photoId}`, { method: "DELETE" });
+    const res = await authenticatedFetch(`${BACKEND_URL}/photos/${photoId}`, { method: "DELETE" });
     if (res.ok) {
       fetchAlbumsWithPhotos();
     }

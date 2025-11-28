@@ -1,5 +1,10 @@
+import { requireAuth, authenticatedFetch } from "./auth-utils.js";
+
 export function init() {
   console.log("Historial de pedidos cargado");
+
+  // Verificar autenticación
+  if (!requireAuth()) return;
 
   const BACKEND_URL = window.BACKEND_URL || "";
   const ordersTableBody = document.getElementById("ordersTableBody");
@@ -11,7 +16,7 @@ export function init() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/orders`);
+      const res = await authenticatedFetch(`${BACKEND_URL}/orders`);
       const data = await res.json();
 
       if (res.ok && Array.isArray(data.orders)) {
@@ -84,7 +89,7 @@ export function init() {
 
   const deleteOrder = async (orderId) => {
     try {
-      const res = await fetch(`${BACKEND_URL}/orders/${orderId}`, {
+      const res = await authenticatedFetch(`${BACKEND_URL}/orders/${orderId}`, {
         method: "DELETE"
       });
 
@@ -111,7 +116,7 @@ export function init() {
     }
 
     try {
-      const res = await fetch(`${BACKEND_URL}/orders/all`, {
+      const res = await authenticatedFetch(`${BACKEND_URL}/orders/all`, {
         method: "DELETE"
       });
 

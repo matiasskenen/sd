@@ -1,3 +1,6 @@
+// Carga las variables de entorno PRIMERO
+require("dotenv").config();
+
 console.log("=== ENTORNO DETECTADO ===");
 console.log("process.env.RENDER:", process.env.RENDER ? "Render" : "Local");
 console.log("Webhook secret (masked):", process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(0, 4) + "****" + process.env.MERCADOPAGO_WEBHOOK_SECRET?.slice(-4));
@@ -5,9 +8,6 @@ console.log("===========================");
 
 // server.js
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
-
-// Carga las variables de entorno al inicio de todo
-require("dotenv").config();
 
 const express = require("express");
 const { createClient } = require("@supabase/supabase-js");
@@ -19,6 +19,7 @@ const mercadopago = require("mercadopago"); // Importa el módulo completo de me
 const cors = require("cors"); // Importa el módulo CORS
 const rateLimit = require("express-rate-limit"); // Rate limiting
 const helmet = require("helmet"); // Security headers
+const { requireAuth, optionalAuth } = require("./middleware/auth"); // Middleware de autenticación
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -241,7 +242,19 @@ const corsOptions = {
         // Permitir requests sin origin (como mobile apps, Postman, curl)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === "development") {
+        // En desarrollo, permitir localhost
+        console.log("🔍 CORS CHECK:", { 
+            origin, 
+            NODE_ENV: process.env.NODE_ENV, 
+            isDev: process.env.NODE_ENV !== 'production' 
+        });
+        
+        if (process.env.NODE_ENV !== 'production') {
+            console.log("✅ Permitido por NODE_ENV");
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             logger.warn("CORS bloqueado", { origin });
@@ -367,22 +380,24 @@ app.get("/test-supabase", async (req, res) => {
     }
 });
 
-// --- NUEVAS RUTAS: Gestión de Álbumes ---
+// --- NUEVAS RUTAS: Gestión de Álbumes (MULTI-TENANT) ---
 
-// Ruta para obtener todos los álbumes (para el dropdown en el admin)
-app.get("/albums", async (req, res) => {
+// Ruta para obtener todos los álbumes del fotógrafo autenticado
+app.get("/albums", requireAuth, async (req, res) => {
     try {
-        // En un sistema real, aquí verificarías la autenticación del fotógrafo
-        // const { data: user } = await supabase.auth.getUser();
-        // if (!user) return res.status(401).json({ message: 'No autorizado.' });
+        const photographerId = req.photographer.id;
 
-        // Usamos supabaseAdmin para obtener todos los álbumes sin restricciones RLS
-        const { data: albums, error } = await supabaseAdmin.from("albums").select("id, name");
+        const { data: albums, error } = await supabaseAdmin
+            .from("albums")
+            .select("id, name, event_date, description, price_per_photo, created_at")
+            .eq("photographer_id", photographerId)
+            .order("created_at", { ascending: false });
 
         if (error) {
-            console.error("Error al obtener álbumes:", error.message);
+            logger.error("Error al obtener álbumes", { error: error.message, photographerId });
             return res.status(500).json({ message: `Error al obtener álbumes: ${error.message}` });
         }
+        
         res.status(200).json({ message: "Álbumes obtenidos exitosamente.", albums });
     } catch (err) {
         console.error("Error inesperado al obtener álbumes:", err);
@@ -390,10 +405,10 @@ app.get("/albums", async (req, res) => {
     }
 });
 
-// Ruta para crear un nuevo álbum (CON RATE LIMITING)
-app.post("/albums", createLimiter, async (req, res) => {
+// Ruta para crear un nuevo álbum (CON RATE LIMITING Y AUTH)
+app.post("/albums", requireAuth, createLimiter, async (req, res) => {
     const { name, event_date, description, price_per_photo } = req.body;
-    const photographer_user_id = "65805569-2e32-46a0-97c5-c52e31e02866"; // <-- ¡IMPORTANTE! Usar el ID real del fotógrafo logueado
+    const photographerId = req.photographer.id;
 
     if (!name) {
         return res.status(400).json({ message: "El nombre del álbum es requerido." });
@@ -402,10 +417,10 @@ app.post("/albums", createLimiter, async (req, res) => {
         return res.status(400).json({ message: "La fecha del evento es requerida para el álbum." });
     }
 
-    // Precio por defecto si no se especifica
-    const finalPrice = price_per_photo ? Number(price_per_photo) : 15.0;
+    // Usar precio por defecto del fotógrafo si no se especifica
+    const finalPrice = price_per_photo ? Number(price_per_photo) : req.photographer.default_price_per_photo || 1500.0;
 
-    logger.info("Creando nuevo álbum", { name, event_date, price_per_photo: finalPrice });
+    logger.info("Creando nuevo álbum", { name, event_date, price_per_photo: finalPrice, photographerId });
 
     try {
         const { data: album, error } = await supabaseAdmin
@@ -415,7 +430,7 @@ app.post("/albums", createLimiter, async (req, res) => {
                 event_date,
                 description: description || null,
                 price_per_photo: finalPrice,
-                photographer_user_id,
+                photographer_id: photographerId,
             })
             .select()
             .single();
@@ -468,7 +483,15 @@ app.get("/albums/:albumId/photos", async (req, res) => {
     }
 });
 
-// Ruta de login para fotógrafos (CON RATE LIMITING)
+// Importar rutas
+const authRoutes = require('./routes/auth');
+const subscriptionRoutes = require('./routes/subscriptions');
+
+// Montar rutas
+app.use('/auth', authLimiter, authRoutes);
+app.use('/subscriptions', subscriptionRoutes);
+
+// Ruta de login legacy (mantener por compatibilidad)
 app.post("/login", authLimiter, async (req, res) => {
     const { email, password } = req.body;
 
@@ -513,8 +536,31 @@ async function createPaymentPreferenceHandler(req, res) {
     for (const item of cart) totalAmount += Number(item.price) * Number(item.quantity || 1);
 
     try {
-        // 1) Crear order
-        const { data: orderData, error: orderErr } = await supabaseAdmin.from("orders").insert({ customer_email: customerEmail, total_amount: totalAmount, status: "pending" }).select().single();
+        // Obtener photographer_id desde la primera foto del carrito
+        const firstPhotoId = cart[0].photoId;
+        const { data: photoData } = await supabaseAdmin
+            .from("photos")
+            .select("album_id, albums!inner(photographer_id)")
+            .eq("id", firstPhotoId)
+            .single();
+
+        if (!photoData) {
+            return res.status(404).json({ message: "Foto no encontrada" });
+        }
+
+        const photographerId = photoData.albums.photographer_id;
+
+        // 1) Crear order con photographer_id
+        const { data: orderData, error: orderErr } = await supabaseAdmin
+            .from("orders")
+            .insert({
+                customer_email: customerEmail,
+                total_amount: totalAmount,
+                status: "pending",
+                photographer_id: photographerId,
+            })
+            .select()
+            .single();
         if (orderErr) return res.status(500).json({ message: `Error al crear pedido: ${orderErr.message}` });
 
         // 2) Insert order_items
@@ -560,9 +606,9 @@ async function createPaymentPreferenceHandler(req, res) {
 app.post("/create-payment-preference", createPaymentPreferenceHandler);
 app.post("/payments/create-payment-preference", createPaymentPreferenceHandler);
 
-app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => {
+app.post("/upload-photos/:albumId", requireAuth, upload.array("photos"), async (req, res) => {
     const albumId = req.params.albumId;
-    const photographerId = "65805569-2e32-46a0-97c5-c52e31e02866"; // <-- tu ID fijo por ahora
+    const photographerId = req.photographer.id;
 
     if (!albumId || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(albumId)) {
         return res.status(400).json({ message: "ID de álbum no válido." });
@@ -571,12 +617,12 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
     let albumPrice; // Declarar fuera del try para que sea accesible en todo el scope
 
     try {
-        // Obtener álbum Y su precio
+        // Obtener álbum Y su precio - verificar que pertenece al fotógrafo autenticado
         const { data: album, error: albumError } = await supabaseAdmin
             .from("albums")
-            .select("id, photographer_user_id, price_per_photo")
+            .select("id, photographer_id, price_per_photo")
             .eq("id", albumId)
-            .eq("photographer_user_id", photographerId)
+            .eq("photographer_id", photographerId)
             .single();
 
         if (albumError || !album) {
@@ -584,8 +630,8 @@ app.post("/upload-photos/:albumId", upload.array("photos"), async (req, res) => 
             return res.status(404).json({ message: "Álbum no encontrado o no autorizado para este fotógrafo." });
         }
 
-        // Precio del álbum (con fallback a 15.0)
-        albumPrice = album.price_per_photo || 15.0;
+        // Precio del álbum (con fallback al precio por defecto del fotógrafo)
+        albumPrice = album.price_per_photo || req.photographer.default_price_per_photo || 1500.0;
         logger.info("Subida de fotos iniciada", { albumId, albumPrice, photographerId });
     } catch (dbError) {
         console.error("Error de base de datos al verificar álbum:", dbError);
@@ -1221,12 +1267,22 @@ app.listen(PORT, () => {
 
 app.get("/config.js", (req, res) => {
     res.setHeader("Content-Type", "application/javascript");
-    res.send(`const BACKEND_URL = "${process.env.BACKEND_URL}";`);
+    // En desarrollo, usar localhost; en producción, usar BACKEND_URL del .env
+    const backendUrl = process.env.NODE_ENV === "development" 
+        ? `http://localhost:${process.env.PORT || 3000}`
+        : process.env.BACKEND_URL;
+    res.send(`window.BACKEND_URL = "${backendUrl}";`);
 });
 
-app.get("/orders", async (req, res) => {
+app.get("/orders", requireAuth, async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin.from("orders").select("*").order("created_at", { ascending: false });
+        const photographerId = req.photographer.id;
+        
+        const { data, error } = await supabaseAdmin
+            .from("orders")
+            .select("*")
+            .eq("photographer_id", photographerId)
+            .order("created_at", { ascending: false });
 
         if (error) throw error;
 
@@ -1237,11 +1293,16 @@ app.get("/orders", async (req, res) => {
     }
 });
 
-// Eliminar todos los pedidos (debe estar ANTES de /orders/:id)
-app.delete("/orders/all", async (req, res) => {
+// Eliminar todos los pedidos del fotógrafo (debe estar ANTES de /orders/:id)
+app.delete("/orders/all", requireAuth, async (req, res) => {
     try {
-        // Primero obtener todos los pedidos
-        const { data: orders, error: fetchError } = await supabaseAdmin.from("orders").select("id");
+        const photographerId = req.photographer.id;
+        
+        // Primero obtener todos los pedidos del fotógrafo
+        const { data: orders, error: fetchError } = await supabaseAdmin
+            .from("orders")
+            .select("id")
+            .eq("photographer_id", photographerId);
 
         if (fetchError) throw fetchError;
 
@@ -1270,10 +1331,23 @@ app.delete("/orders/all", async (req, res) => {
     }
 });
 
-// Eliminar un pedido específico
-app.delete("/orders/:id", async (req, res) => {
+// Eliminar un pedido específico (MULTI-TENANT)
+app.delete("/orders/:id", requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
+        const photographerId = req.photographer.id;
+
+        // Verificar que el pedido pertenece al fotógrafo
+        const { data: order } = await supabaseAdmin
+            .from("orders")
+            .select("id")
+            .eq("id", id)
+            .eq("photographer_id", photographerId)
+            .single();
+
+        if (!order) {
+            return res.status(404).json({ message: "Pedido no encontrado o no autorizado" });
+        }
 
         // Eliminar order_items asociados primero
         const { error: itemsError } = await supabaseAdmin.from("order_items").delete().eq("order_id", id);
@@ -1292,18 +1366,41 @@ app.delete("/orders/:id", async (req, res) => {
     }
 });
 
-app.get("/admin/stats", async (req, res) => {
+app.get("/admin/stats", requireAuth, async (req, res) => {
     try {
-        const [{ count: totalAlbums }, { count: totalPhotos }, { count: totalOrders }] = await Promise.all([
-            supabaseAdmin.from("albums").select("*", { count: "exact", head: true }),
-            supabaseAdmin.from("photos").select("*", { count: "exact", head: true }),
-            supabaseAdmin.from("orders").select("*", { count: "exact", head: true }),
+        const photographerId = req.photographer.id;
+
+        // Obtener conteos filtrados por photographer_id
+        const [{ count: totalAlbums }, albumsWithPhotos, { count: totalOrders }, ordersData] = await Promise.all([
+            supabaseAdmin.from("albums").select("*", { count: "exact", head: true }).eq("photographer_id", photographerId),
+            supabaseAdmin.from("albums").select("id").eq("photographer_id", photographerId),
+            supabaseAdmin.from("orders").select("*", { count: "exact", head: true }).eq("photographer_id", photographerId),
+            supabaseAdmin.from("orders").select("total_amount, status").eq("photographer_id", photographerId),
         ]);
+
+        // Contar fotos de todos los álbumes del fotógrafo
+        const albumIds = albumsWithPhotos.data?.map((a) => a.id) || [];
+        let totalPhotos = 0;
+        if (albumIds.length > 0) {
+            const { count } = await supabaseAdmin.from("photos").select("*", { count: "exact", head: true }).in("album_id", albumIds);
+            totalPhotos = count ?? 0;
+        }
+
+        // Calcular ventas totales (solo pedidos pagados)
+        const totalSales = ordersData.data
+            ?.filter((order) => order.status === "paid")
+            .reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
 
         res.json({
             totalAlbums: totalAlbums ?? 0,
-            totalPhotos: totalPhotos ?? 0,
+            totalPhotos,
             totalOrders: totalOrders ?? 0,
+            totalSales: totalSales.toFixed(2),
+            photographer: {
+                business_name: req.photographer.business_name,
+                plan_type: req.photographer.plan_type,
+                subscription_status: req.photographer.subscription_status,
+            },
         });
     } catch (err) {
         console.error("Error al obtener estadísticas:", err);
@@ -1311,9 +1408,11 @@ app.get("/admin/stats", async (req, res) => {
     }
 });
 
-// Obtener álbumes con sus fotos
-app.get("/albums-with-photos", async (req, res) => {
+// Obtener álbumes con sus fotos (MULTI-TENANT)
+app.get("/albums-with-photos", requireAuth, async (req, res) => {
     try {
+        const photographerId = req.photographer.id;
+        
         const { data: albums, error } = await supabaseAdmin
             .from("albums")
             .select(
@@ -1323,12 +1422,13 @@ app.get("/albums-with-photos", async (req, res) => {
         event_date,
         description,
         price_per_photo,
-        photos (
+        photos!photos_album_id_fkey (
           id,
           watermarked_file_path
         )
       `
             )
+            .eq("photographer_id", photographerId)
             .order("event_date", { ascending: false });
 
         if (error) throw error;
@@ -1348,12 +1448,21 @@ app.get("/albums-with-photos", async (req, res) => {
     }
 });
 
-// Eliminar álbum y fotos
-app.delete("/albums/:id", async (req, res) => {
+// Eliminar álbum y fotos (MULTI-TENANT)
+app.delete("/albums/:id", requireAuth, async (req, res) => {
     const { id } = req.params;
+    const photographerId = req.photographer.id;
+    
     try {
+        // Verificar que el álbum pertenece al fotógrafo
+        const { data: album } = await supabaseAdmin.from("albums").select("id").eq("id", id).eq("photographer_id", photographerId).single();
+        
+        if (!album) {
+            return res.status(404).json({ message: "Álbum no encontrado o no autorizado" });
+        }
+        
         await supabaseAdmin.from("photos").delete().eq("album_id", id);
-        const { error } = await supabaseAdmin.from("albums").delete().eq("id", id);
+        const { error } = await supabaseAdmin.from("albums").delete().eq("id", id).eq("photographer_id", photographerId);
         if (error) throw error;
         res.json({ message: "Álbum eliminado" });
     } catch (err) {
@@ -1362,10 +1471,23 @@ app.delete("/albums/:id", async (req, res) => {
     }
 });
 
-// Eliminar foto
-app.delete("/photos/:id", async (req, res) => {
+// Eliminar foto (MULTI-TENANT)
+app.delete("/photos/:id", requireAuth, async (req, res) => {
     const { id } = req.params;
+    const photographerId = req.photographer.id;
+    
     try {
+        // Verificar que la foto pertenece a un álbum del fotógrafo
+        const { data: photo } = await supabaseAdmin
+            .from("photos")
+            .select("id, album_id, albums!inner(photographer_id)")
+            .eq("id", id)
+            .single();
+        
+        if (!photo || photo.albums.photographer_id !== photographerId) {
+            return res.status(404).json({ message: "Foto no encontrada o no autorizada" });
+        }
+        
         const { error } = await supabaseAdmin.from("photos").delete().eq("id", id);
         if (error) throw error;
         res.json({ message: "Foto eliminada" });

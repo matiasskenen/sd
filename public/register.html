@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Plataforma de Fotógrafos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-md mx-auto">
+            <!-- Logo / Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-indigo-600 mb-2">FotoEscolar</h1>
+                <p class="text-gray-600">Crea tu cuenta y empieza tu prueba gratis</p>
+            </div>
+
+            <!-- Card de Registro -->
+            <div class="bg-white rounded-xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Registro</h2>
+
+                <!-- Mensaje de error -->
+                <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <span id="error-text"></span>
+                </div>
+
+                <!-- Mensaje de éxito -->
+                <div id="success-message" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                    <span id="success-text"></span>
+                </div>
+
+                <form id="register-form" class="space-y-4">
+                    <!-- Email -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                            Email *
+                        </label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="tu@email.com"
+                            value="test@test.com"
+                            autocomplete="email"
+                        >
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Contraseña * (mínimo 8 caracteres)
+                        </label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required
+                            minlength="8"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="••••••••"
+                            value="password123"
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div>
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Confirmar Contraseña *
+                        </label>
+                        <input 
+                            type="password" 
+                            id="confirm-password" 
+                            name="confirm-password" 
+                            required
+                            minlength="8"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="••••••••"
+                            value="password123"
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <hr class="my-6">
+
+                    <!-- Business Name -->
+                    <div>
+                        <label for="business-name" class="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre del Negocio *
+                        </label>
+                        <input 
+                            type="text" 
+                            id="business-name" 
+                            name="business-name" 
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="Foto Estudio Juan Pérez"
+                            value="Test Studio"
+                            autocomplete="organization"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Nombre legal o comercial de tu estudio</p>
+                    </div>
+
+                    <!-- Display Name -->
+                    <div>
+                        <label for="display-name" class="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre para Mostrar *
+                        </label>
+                        <input 
+                            type="text" 
+                            id="display-name" 
+                            name="display-name" 
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="Juan Pérez Fotografía"
+                            value="Test Photographer"
+                            autocomplete="name"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Cómo aparecerás en tu perfil público</p>
+                    </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                            Teléfono (opcional)
+                        </label>
+                        <input 
+                            type="tel" 
+                            id="phone" 
+                            name="phone"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="+54 9 11 1234-5678"
+                        >
+                    </div>
+
+                    <!-- Trial Info -->
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mt-6">
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-medium text-indigo-800">14 días de prueba gratis</p>
+                                <p class="text-xs text-indigo-600 mt-1">
+                                    Acceso completo al Plan Pro sin necesidad de tarjeta de crédito.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Terms -->
+                    <div class="flex items-start mt-6">
+                        <input 
+                            type="checkbox" 
+                            id="terms" 
+                            name="terms" 
+                            required
+                            class="mt-1 mr-2"
+                        >
+                        <label for="terms" class="text-sm text-gray-600">
+                            Acepto los <a href="#" class="text-indigo-600 hover:underline">Términos y Condiciones</a> 
+                            y la <a href="#" class="text-indigo-600 hover:underline">Política de Privacidad</a>
+                        </label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button 
+                        type="submit" 
+                        id="submit-btn"
+                        class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200 mt-6"
+                    >
+                        Crear Cuenta
+                    </button>
+                </form>
+
+                <!-- Login Link -->
+                <p class="text-center text-sm text-gray-600 mt-6">
+                    ¿Ya tienes cuenta? 
+                    <a href="/login.html" class="text-indigo-600 hover:underline font-medium">Inicia sesión</a>
+                </p>
+            </div>
+
+            <!-- Features -->
+            <div class="mt-8 grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <div class="text-2xl mb-1">📸</div>
+                    <p class="text-xs text-gray-600">Sube tus fotos</p>
+                </div>
+                <div>
+                    <div class="text-2xl mb-1">💰</div>
+                    <p class="text-xs text-gray-600">Recibe pagos</p>
+                </div>
+                <div>
+                    <div class="text-2xl mb-1">📊</div>
+                    <p class="text-xs text-gray-600">Ve tus stats</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://school-photos-backend.onrender.com';
+
+        const form = document.getElementById('register-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorDiv = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const successDiv = document.getElementById('success-message');
+        const successText = document.getElementById('success-text');
+
+        function showError(message) {
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+            successDiv.classList.add('hidden');
+        }
+
+        function showSuccess(message) {
+            successText.textContent = message;
+            successDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+        }
+
+        function hideMessages() {
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessages();
+
+            // Validaciones
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const businessName = document.getElementById('business-name').value.trim();
+            const displayName = document.getElementById('display-name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const termsAccepted = document.getElementById('terms').checked;
+
+            if (!termsAccepted) {
+                showError('Debes aceptar los términos y condiciones');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showError('Las contraseñas no coinciden');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('La contraseña debe tener al menos 8 caracteres');
+                return;
+            }
+
+            // Deshabilitar botón
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creando cuenta...';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        businessName,
+                        displayName,
+                        phone: phone || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error al crear cuenta');
+                }
+
+                // Éxito - guardar sesión, token y datos del fotógrafo
+                if (data.session && data.session.access_token) {
+                    localStorage.setItem('auth_token', data.session.access_token);
+                    localStorage.setItem('session', JSON.stringify(data.session));
+                }
+                
+                if (data.photographer) {
+                    localStorage.setItem('photographer', JSON.stringify(data.photographer));
+                }
+
+                showSuccess('¡Cuenta creada exitosamente! Redirigiendo al dashboard...');
+
+                setTimeout(() => {
+                    window.location.href = '/admin/admin_dashboard.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'Error al crear cuenta. Intenta nuevamente.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Crear Cuenta';
+            }
+        });
+    </script>
+</body>
+</html>

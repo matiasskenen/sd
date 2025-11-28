@@ -165,14 +165,24 @@
 
                 if (response.ok) {
                     showMessage('Inicio de sesión exitoso. Redirigiendo al panel...', 'success');
-                    // Aquí, en una aplicación real, guardarías el token de sesión
-                    // y redirigirías al panel de administración.
-                    console.log('Usuario logueado:', data.user);
-                    console.log('Sesión:', data.session);
+                    
+                    // Guardar token JWT y datos del fotógrafo en localStorage
+                    if (data.session && data.session.access_token) {
+                        localStorage.setItem('auth_token', data.session.access_token);
+                        localStorage.setItem('session', JSON.stringify(data.session));
+                    }
+                    
+                    if (data.photographer) {
+                        localStorage.setItem('photographer', JSON.stringify(data.photographer));
+                    }
 
-                    // Redirigir al panel de administración (ej. admin_dashboard.html)
-                    // Por ahora, solo un log y un mensaje
-                    window.location.href = `${BACKEND_URL}/admin/admin_dashboard.html`; // <-- Necesitarás crear esta página
+                    console.log('Usuario logueado:', data.photographer);
+                    console.log('Token guardado');
+
+                    // Redirigir al panel de administración
+                    setTimeout(() => {
+                        window.location.href = '/admin/admin_dashboard.html';
+                    }, 1000);
                 } else {
                     showMessage(data.message || 'Error al iniciar sesión. Credenciales inválidas.', 'error');
                     console.error('Error de login:', data);
